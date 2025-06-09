@@ -1,0 +1,85 @@
+/* Global CSS styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+main {
+    flex: 1;
+}
+
+.content-wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 15px;
+}
+
+@media (min-width: 768px) {
+    .content-wrapper {
+        padding: 20px 30px;
+    }
+}
+
+@media (min-width: 992px) {
+    .content-wrapper {
+        padding: 25px 50px;
+    }
+}
+
+/* Dark mode styling */
+body.dark-mode {
+    background-color: #212529;
+    color: #f8f9fa;
+}
+
+body.dark-mode .bg-light {
+    background-color: #343a40 !important;
+}
+
+body.dark-mode .text-dark {
+    color: #f8f9fa !important;
+}
+
+body.dark-mode .card {
+    background-color: #343a40;
+    color: #f8f9fa;
+}
+
+body.dark-mode .navbar-light .navbar-nav .nav-link {
+    color: rgba(248, 249, 250, 0.8);
+}
+
+body.dark-mode .navbar-light .navbar-brand {
+    color: #f8f9fa;
+}
+
+body.dark-mode .list-group-item {
+    background-color: #343a40;
+    color: #f8f9fa;
+    border-color: #495057;
+}
+
+body.dark-mode .table {
+    color: #f8f9fa;
+}
+
+body.dark-mode .card-header {
+    border-bottom: 1px solid #495057;
+}
+
+body.dark-mode .modal-content {
+    background-color: #343a40;
+    color: #f8f9fa;
+}
+
+/* Product card styling */
+.product-card {
+    transition: transform 0.3s;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+} 
