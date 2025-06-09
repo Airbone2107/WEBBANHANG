@@ -15,6 +15,7 @@
 require_once('app/config/database.php');
 require_once('app/models/ProductModel.php');
 require_once('app/models/CategoryModel.php');
+require_once('app/helpers/SessionHelper.php');
 
 class ProductController {
     /**
@@ -70,10 +71,14 @@ class ProductController {
     }
 
     /**
-     * Hiển thị form thêm sản phẩm mới
+     * Hiển thị form thêm sản phẩm mới (Chỉ Admin)
      * Phương thức này lấy danh sách danh mục để hiển thị trong form
      */
     public function add() {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Lấy danh sách danh mục để hiển thị trong dropdown
         $categories = (new CategoryModel($this->db))->getCategories();
         // Load view form thêm mới sản phẩm
@@ -81,10 +86,14 @@ class ProductController {
     }
 
     /**
-     * Xử lý lưu sản phẩm mới từ form thêm
+     * Xử lý lưu sản phẩm mới từ form thêm (Chỉ Admin)
      * Kiểm tra tính hợp lệ của dữ liệu và lưu vào cơ sở dữ liệu
      */
     public function save() {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Kiểm tra nếu là phương thức POST
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Lấy dữ liệu từ form
@@ -117,11 +126,15 @@ class ProductController {
     }
 
     /**
-     * Hiển thị form chỉnh sửa sản phẩm
+     * Hiển thị form chỉnh sửa sản phẩm (Chỉ Admin)
      * 
      * @param int $id ID của sản phẩm cần chỉnh sửa
      */
     public function edit($id) {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Lấy thông tin sản phẩm theo ID
         $product = $this->productModel->getProductById($id);
         // Lấy danh sách danh mục để hiển thị trong dropdown
@@ -137,10 +150,14 @@ class ProductController {
     }
 
     /**
-     * Xử lý cập nhật sản phẩm từ form chỉnh sửa
+     * Xử lý cập nhật sản phẩm từ form chỉnh sửa (Chỉ Admin)
      * Kiểm tra tính hợp lệ của dữ liệu và cập nhật vào cơ sở dữ liệu
      */
     public function update() {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Kiểm tra nếu là phương thức POST
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Lấy dữ liệu từ form
@@ -171,11 +188,15 @@ class ProductController {
     }
 
     /**
-     * Xóa sản phẩm khỏi hệ thống
+     * Xóa sản phẩm khỏi hệ thống (Chỉ Admin)
      * 
      * @param int $id ID của sản phẩm cần xóa
      */
     public function delete($id) {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Xóa sản phẩm và kiểm tra kết quả
         if ($this->productModel->deleteProduct($id)) {
             // Nếu thành công, chuyển hướng về trang danh sách sản phẩm

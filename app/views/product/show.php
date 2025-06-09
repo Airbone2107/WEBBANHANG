@@ -57,30 +57,32 @@
         </div>
     </div>
     
-    <div class="mt-5">
+    <?php if (SessionHelper::isAdmin()): ?>
+    <div class="mt-5 pt-4 border-top">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold">Quản lý sản phẩm</h4>
+            <h4 class="fw-bold"><i class="fas fa-cogs me-2"></i>Quản lý sản phẩm</h4>
             <div>
                 <a href="/WEBBANHANG/Product/edit/<?php echo $product->id; ?>" class="btn btn-outline-primary me-2">
                     <i class="fas fa-edit me-1"></i> Sửa sản phẩm
                 </a>
                 <a href="/WEBBANHANG/Product/delete/<?php echo $product->id; ?>" 
                    class="btn btn-outline-danger"
-                   onclick="return confirm('Bạn có chắc chắn muốn xóa sản phẩm này?');">
+                   onclick="return confirm('Bạn có chắc chắn muốn xóa sản phẩm \'<?php echo htmlspecialchars(addslashes($product->name), ENT_QUOTES, 'UTF-8'); ?>\'?');">
                     <i class="fas fa-trash me-1"></i> Xóa sản phẩm
                 </a>
             </div>
         </div>
         
-        <div class="card">
+        <div class="card bg-light">
             <div class="card-body">
                 <p class="mb-0 text-muted">
                     <i class="fas fa-info-circle me-1"></i> 
-                    Bạn có thể sửa hoặc xóa sản phẩm này. Lưu ý rằng việc xóa sản phẩm không thể hoàn tác.
+                    Là Admin, bạn có thể sửa hoặc xóa sản phẩm này. Lưu ý rằng việc xóa sản phẩm không thể hoàn tác.
                 </p>
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php include 'app/views/shares/footer.php'; ?>

@@ -50,18 +50,25 @@ class CategoryController {
     }
 
     /**
-     * Hiển thị form thêm danh mục mới
+     * Hiển thị form thêm danh mục mới (Chỉ Admin)
      */
     public function add() {
-        // Load view form thêm mới danh mục
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         include 'app/views/category/add.php';
     }
 
     /**
-     * Xử lý lưu danh mục mới từ form thêm
+     * Xử lý lưu danh mục mới từ form thêm (Chỉ Admin)
      * Kiểm tra tính hợp lệ của dữ liệu và lưu vào cơ sở dữ liệu
      */
     public function save() {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Kiểm tra nếu là phương thức POST
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Lấy dữ liệu từ form
@@ -84,11 +91,14 @@ class CategoryController {
     }
 
     /**
-     * Hiển thị form chỉnh sửa danh mục
-     * 
+     * Hiển thị form chỉnh sửa danh mục (Chỉ Admin)
      * @param int $id ID của danh mục cần chỉnh sửa
      */
     public function edit($id) {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Lấy thông tin danh mục theo ID
         $category = $this->categoryModel->getCategoryById($id);
         
@@ -102,10 +112,13 @@ class CategoryController {
     }
 
     /**
-     * Xử lý cập nhật danh mục từ form chỉnh sửa
-     * Kiểm tra tính hợp lệ của dữ liệu và cập nhật vào cơ sở dữ liệu
+     * Xử lý cập nhật danh mục từ form chỉnh sửa (Chỉ Admin)
      */
     public function update() {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Kiểm tra nếu là phương thức POST
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Lấy dữ liệu từ form
@@ -130,11 +143,14 @@ class CategoryController {
     }
 
     /**
-     * Xóa danh mục khỏi hệ thống
-     * 
+     * Xóa danh mục khỏi hệ thống (Chỉ Admin)
      * @param int $id ID của danh mục cần xóa
      */
     public function delete($id) {
+        if (!SessionHelper::isAdmin()) {
+            include 'app/views/errors/unauthorized.php';
+            exit();
+        }
         // Xóa danh mục
         $this->categoryModel->deleteCategory($id);
         // Chuyển hướng về trang danh sách danh mục

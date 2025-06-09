@@ -91,6 +91,7 @@ class ProductModel
         if (empty($description)) {
             $errors['description'] = 'Mô tả không được để trống';
         }
+        // Kiểm tra price. Nếu $price là null từ controller (do ?? ''), is_numeric('') là false.
         if (!is_numeric($price) || $price < 0) {
             $errors['price'] = 'Giá sản phẩm không hợp lệ';
         }
@@ -105,19 +106,49 @@ class ProductModel
             VALUES (:name, :description, :price, :category_id, :image)";
         $stmt = $this->conn->prepare($query);
 
-        // Làm sạch dữ liệu để tránh SQL injection
-        $name = htmlspecialchars(strip_tags($name));
-        $description = htmlspecialchars(strip_tags($description));
-        $price = htmlspecialchars(strip_tags($price));
-        $category_id = htmlspecialchars(strip_tags($category_id));
-        $image = htmlspecialchars(strip_tags($image));
+        // Làm sạch dữ liệu để tránh SQL injection và xử lý lỗi deprecated
+        // Sử dụng toán tử null coalescing (?? '') để đảm bảo strip_tags nhận chuỗi
+        $cleaned_name = htmlspecialchars(strip_tags($name ?? ''));
+        $cleaned_description = htmlspecialchars(strip_tags($description ?? ''));
+        $cleaned_price = htmlspecialchars(strip_tags($price ?? '')); // Dòng 113 đã được sửa
+        
+        // Xử lý category_id: nếu cột trong DB cho phép NULL và muốn giữ NULL, cần xử lý bindParam khác.
+        // Hiện tại, nếu category_id là null, nó sẽ trở thành chuỗi rỗng.
+        $cleaned_category_id = htmlspecialchars(strip_tags($category_id ?? ''));
+        
+        // Xử lý image: tương tự category_id
+        $cleaned_image = htmlspecialchars(strip_tags($image ?? ''));
 
         // Gán các tham số cho truy vấn
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':description', $description);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':category_id', $category_id);
-        $stmt->bindParam(':image', $image);
+        $stmt->bindParam(':name', $cleaned_name);
+        $stmt->bindParam(':description', $cleaned_description);
+        $stmt->bindParam(':price', $cleaned_price);
+        
+        // Nếu category_id có thể là NULL trong DB và bạn muốn truyền NULL thay vì 0 (khi '' được convert)
+        if ($cleaned_category_id === '' && ($category_id === null || $category_id === '')) {
+             // Giả sử cột category_id trong DB cho phép NULL và bạn muốn lưu NULL nếu không có category_id
+             // Nếu cột không cho phép NULL, việc truyền '' (sau đó MySQL có thể convert thành 0) là hành vi hiện tại.
+             // Nếu bạn muốn bind NULL một cách tường minh khi $category_id ban đầu là null:
+            if ($category_id === null) {
+                $stmt->bindParam(':category_id', $category_id, PDO::PARAM_NULL);
+            } else { // $category_id là '', có thể do người dùng nhập hoặc logic khác
+                $stmt->bindParam(':category_id', $cleaned_category_id); // Sẽ bind ''
+            }
+        } else {
+            $stmt->bindParam(':category_id', $cleaned_category_id);
+        }
+
+        // Tương tự cho image
+        if ($cleaned_image === '' && ($image === null || $image === '')) {
+            if ($image === null) {
+                $stmt->bindParam(':image', $image, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindParam(':image', $cleaned_image);
+            }
+        } else {
+            $stmt->bindParam(':image', $cleaned_image);
+        }
+
 
         // Thực thi truy vấn và trả về kết quả
         if ($stmt->execute()) {
@@ -145,20 +176,39 @@ class ProductModel
             category_id=:category_id, image=:image WHERE id=:id";  
         $stmt = $this->conn->prepare($query);
 
-        // Làm sạch dữ liệu để tránh SQL injection
-        $name = htmlspecialchars(strip_tags($name));
-        $description = htmlspecialchars(strip_tags($description));
-        $price = htmlspecialchars(strip_tags($price));
-        $category_id = htmlspecialchars(strip_tags($category_id));
-        $image = htmlspecialchars(strip_tags($image));
+        // Làm sạch dữ liệu để tránh SQL injection và xử lý lỗi deprecated
+        $cleaned_name = htmlspecialchars(strip_tags($name ?? ''));
+        $cleaned_description = htmlspecialchars(strip_tags($description ?? ''));
+        $cleaned_price = htmlspecialchars(strip_tags($price ?? ''));
+        $cleaned_category_id = htmlspecialchars(strip_tags($category_id ?? ''));
+        $cleaned_image = htmlspecialchars(strip_tags($image ?? ''));
 
         // Gán các tham số cho truy vấn
         $stmt->bindParam(':id', $id);
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':description', $description);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':category_id', $category_id);
-        $stmt->bindParam(':image', $image);
+        $stmt->bindParam(':name', $cleaned_name);
+        $stmt->bindParam(':description', $cleaned_description);
+        $stmt->bindParam(':price', $cleaned_price);
+
+        // Xử lý bindParam cho category_id và image tương tự như addProduct nếu cần thiết
+        if ($cleaned_category_id === '' && ($category_id === null || $category_id === '')) {
+            if ($category_id === null) {
+                $stmt->bindParam(':category_id', $category_id, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindParam(':category_id', $cleaned_category_id);
+            }
+        } else {
+            $stmt->bindParam(':category_id', $cleaned_category_id);
+        }
+
+        if ($cleaned_image === '' && ($image === null || $image === '')) {
+            if ($image === null) {
+                $stmt->bindParam(':image', $image, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindParam(':image', $cleaned_image);
+            }
+        } else {
+            $stmt->bindParam(':image', $cleaned_image);
+        }
 
         // Thực thi truy vấn và trả về kết quả
         if ($stmt->execute()) {

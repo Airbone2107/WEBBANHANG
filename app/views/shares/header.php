@@ -102,7 +102,9 @@
                             </a>
                             <ul class="dropdown-menu shadow" aria-labelledby="productDropdown">
                                 <li><a class="dropdown-item" href="/WEBBANHANG/Product/"><i class="fas fa-list me-1"></i> Danh sách sản phẩm</a></li>
+                                <?php if (SessionHelper::isAdmin()): ?>
                                 <li><a class="dropdown-item" href="/WEBBANHANG/Product/add"><i class="fas fa-plus me-1"></i> Thêm sản phẩm</a></li>
+                                <?php endif; ?>
                             </ul>
                         </li>
                         <li class="nav-item dropdown">
@@ -111,16 +113,58 @@
                                 <i class="fas fa-tags me-1"></i> Danh mục
                             </a>
                             <ul class="dropdown-menu shadow" aria-labelledby="categoryDropdown">
-                                <li><a class="dropdown-item" href="/WEBBANHANG/category/"><i class="fas fa-list me-1"></i> Danh sách danh mục</a></li>
-                                <li><a class="dropdown-item" href="/WEBBANHANG/category/add"><i class="fas fa-plus me-1"></i> Thêm danh mục</a></li>
+                                <li><a class="dropdown-item" href="/WEBBANHANG/Category/"><i class="fas fa-list me-1"></i> Danh sách danh mục</a></li>
+                                <?php if (SessionHelper::isAdmin()): ?>
+                                <li><a class="dropdown-item" href="/WEBBANHANG/Category/add"><i class="fas fa-plus me-1"></i> Thêm danh mục</a></li>
+                                <?php endif; ?>
                             </ul>
                         </li>
                     </ul>
                     <div class="d-flex align-items-center">
-                        <a href="/WEBBANHANG/Product/cart" class="btn btn-outline-primary me-2">
+                        <a href="/WEBBANHANG/Product/cart" class="btn btn-outline-primary me-3 position-relative">
                             <i class="fas fa-shopping-cart"></i>
+                            <?php 
+                            // Đếm số lượng sản phẩm trong giỏ hàng
+                            $cartItemCount = 0;
+                            if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
+                                foreach ($_SESSION['cart'] as $item) {
+                                    $cartItemCount += $item['quantity'];
+                                }
+                            }
+                            if ($cartItemCount > 0): ?>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                <?php echo $cartItemCount; ?>
+                                <span class="visually-hidden">unread messages</span>
+                            </span>
+                            <?php endif; ?>
                         </a>
-                        <button id="darkModeToggle" class="btn btn-outline-secondary">
+
+                        <?php if (SessionHelper::isLoggedIn()): ?>
+                            <?php $currentUser = SessionHelper::getUser(); ?>
+                            <div class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-user me-1"></i> <?php echo htmlspecialchars($currentUser->fullname ?? $currentUser->username); ?>
+                                    <?php if (SessionHelper::isAdmin()): ?>
+                                        <span class="badge bg-info text-dark ms-1">Admin</span>
+                                    <?php endif; ?>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-user-circle me-1"></i> Hồ sơ</a></li>
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-1"></i> Cài đặt</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="/WEBBANHANG/Account/logout"><i class="fas fa-sign-out-alt me-1"></i> Đăng xuất</a></li>
+                                </ul>
+                            </div>
+                        <?php else: ?>
+                            <a href="/WEBBANHANG/Account/login" class="btn btn-outline-success me-2">
+                                <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập
+                            </a>
+                            <a href="/WEBBANHANG/Account/register" class="btn btn-success">
+                                <i class="fas fa-user-plus me-1"></i> Đăng ký
+                            </a>
+                        <?php endif; ?>
+                        
+                        <button id="darkModeToggle" class="btn btn-outline-secondary ms-2">
                             <i class="fas fa-moon"></i>
                         </button>
                     </div>

@@ -1,334 +1,382 @@
-# Plan for User Authentication System
+# Kế hoạch triển khai mã nguồn
 
-This document outlines the steps to build a basic user authentication system based on the provided PHP and SQL code snippets.
+Dưới đây là danh sách các tệp cần tạo hoặc cập nhật và toàn bộ mã nguồn được lấy trực tiếp từ các hình ảnh.
 
-## 1. Database Setup
+## 1. Các tệp cần thay đổi / tạo mới:
 
-**Objective:** Create the `account` table (or `users` as specified in SQL, but the model/queries expect `account`) to store user information.
+*   `app/utils/JWTHandler.php`
+*   `ProductApiController.php` (Thường nằm trong `app/controllers/`)
+*   `AccountController.php` (Thường nằm trong `app/controllers/`)
+*   `app/views/account/login.php`
+*   `app/views/shares/header.php`
+*   `app/views/product/list.php` (Giả định vị trí cho trang danh sách sản phẩm)
 
-**File:** (N/A - SQL Command)
+---
 
-**SQL Script:**
+## 2. Mã nguồn chi tiết:
 
-```sql
-CREATE TABLE account (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-**Note:** The provided `CREATE TABLE` statement uses `users` as the table name, but the `AccountModel` uses `$table_name = "account";` and the `getAccountByUsername` query uses `FROM account`. For consistency with the PHP code, it's recommended to name the table `account` in your database. Additionally, the provided `AccountController::save` sends `fullname` but the `CREATE TABLE` and `AccountModel::save` SQL do not include a `fullname` column. You might need to add `fullname VARCHAR(255)` to your table definition and update `AccountModel::save` to include it.
-
-## 2. Models
-
-**Objective:** Create the `AccountModel` to handle database interactions for user data.
-
-**File:** `app/models/AccountModel.php`
-
-**Code:**
+### `app/utils/JWTHandler.php`
 
 ```php
 <?php
 
-class AccountModel
+require_once 'vendor/autoload.php';
+
+use \Firebase\JWT\JWT;
+use \Firebase\JWT\Key;
+
+class JWTHandler
 {
-    private $conn;
-    private $table_name = "account"; // Note: The database CREATE TABLE was 'users', but code uses 'account'. Make sure your DB table is 'account'.
+    private $secret_key;
 
-    public function __construct($db)
+    public function __construct()
     {
-        $this->conn = $db;
+        $this->secret_key = "HUTECH"; // Thay thế bằng khóa bí mật của bạn
     }
 
-    public function getAccountByUsername($username)
+    // Tạo JWT
+    public function encode($data)
     {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE username = :username";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':username', $username, PDO::PARAM_STR);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_OBJ);
-        return $result;
+        $issuedAt = time();
+        $expirationTime = $issuedAt + 3600; // jwt valid for 1 hour from the issued time
+
+        $payload = array(
+            'iat' => $issuedAt,
+            'exp' => $expirationTime,
+            'data' => $data
+        );
+
+        return JWT::encode($payload, $this->secret_key, 'HS256');
     }
 
-    public function save($username, $name, $password, $role = "user")
+    // Giải mã JWT
+    public function decode($jwt)
     {
-        // Note: The original INSERT INTO query only includes 'username', 'password', 'role'.
-        // The 'fullname' (passed as $name here) is not saved with this query.
-        // To save fullname, you need to add 'fullname' column to the table
-        // and include it in the INSERT query and bindParam.
-        $query = "INSERT INTO " . $this->table_name . " (\"username\", \"password\", \"role\") VALUES (:username, :password, :role)";
-
-        $stmt = $this->conn->prepare($query);
-
-        // Sanitize data
-        $name = htmlspecialchars(strip_tags($name)); // 'name' is passed, but not used in INSERT statement below for fullname
-        $username = htmlspecialchars(strip_tags($username));
-
-        // Bind parameters
-        $stmt->bindParam(':username', $username);
-        $stmt->bindParam(':password', $password);
-        $stmt->bindParam(':role', $role);
-
-        // Execute query
-        if ($stmt->execute()) {
-            return true;
+        try {
+            $decoded = JWT::decode($jwt, new Key($this->secret_key, 'HS256'));
+            return (array) $decoded->data;
+        } catch (Exception $e) {
+            return null;
         }
-
-        return false;
     }
 }
+?>
 ```
 
-## 3. Controllers
+### `ProductApiController.php`
 
-**Objective:** Create the `AccountController` to handle user registration, login, and logout logic, interacting with the `AccountModel` and views.
+```php
+<?php
+require_once 'app/config/database.php';
+require_once 'app/models/ProductModel.php';
+require_once 'app/models/CategoryModel.php';
+require_once 'app/utils/JWTHandler.php';
+class ProductApiController
+{
+    private $productModel;
+    private $db;
+    private $jwtHandler;
+    public function __construct()
+    {
+        $this->db = (new Database())->getConnection();
+        $this->productModel = new ProductModel($this->db);
+        $this->jwtHandler = new JWTHandler();
+    }
 
-**File:** `app/controllers/AccountController.php`
+    private function authenticate()
+    {
+        $headers = apache_request_headers();
 
-**Code:**
+        if (isset($headers['Authorization'])) {
+            $authHeader = $headers['Authorization'];
+            $arr = explode(" ", $authHeader);
+            $jwt = $arr[1] ?? null;
+            if ($jwt) {
+                $decoded = $this->jwtHandler->decode($jwt);
+                return $decoded ? true : false;
+            }
+        }
+        return false;
+    }
+
+    // Lấy danh sách sản phẩm
+    public function index()
+    {
+        if ($this->authenticate()) {
+            header('Content-Type: application/json');
+            $products = $this->productModel->getProducts();
+            echo json_encode($products);
+        } else {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+        }
+    }
+
+    // Lấy thông tin sản phẩm theo ID
+    public function show($id)
+    {
+        header('Content-Type: application/json');
+        $product = $this->productModel->getProductById($id);
+        if ($product) {
+            echo json_encode($product);
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => 'Product not found']);
+        }
+    }
+
+    // Thêm sản phẩm mới
+    public function store()
+    {
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $name = $data['name'] ?? '';
+        $description = $data['description'] ?? '';
+        $price = $data['price'] ?? '';
+        $category_id = $data['category_id'] ?? null;
+
+        $result = $this->productModel->addProduct($name, $description, $price, $category_id, null);
+
+        if (is_array($result)) {
+            http_response_code(400);
+            echo json_encode(['errors' => $result]);
+        } else {
+            http_response_code(201);
+            echo json_encode(['message' => 'Product created successfully']);
+        }
+    }
+
+    // Cập nhật sản phẩm theo ID
+    public function update($id)
+    {
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $name = $data['name'] ?? '';
+        $description = $data['description'] ?? '';
+        $price = $data['price'] ?? '';
+        $category_id = $data['category_id'] ?? null;
+
+        $result = $this->productModel->updateProduct($id, $name, $description, $price, $category_id, null);
+
+        if ($result) {
+            echo json_encode(['message' => 'Product updated successfully']);
+        } else {
+            http_response_code(400);
+            echo json_encode(['message' => 'Product update failed']);
+        }
+    }
+
+    // Xóa sản phẩm theo ID
+    public function destroy($id)
+    {
+        header('Content-Type: application/json');
+        $result = $this->productModel->deleteProduct($id);
+
+        if ($result) {
+            echo json_encode(['message' => 'Product deleted successfully']);
+        } else {
+            http_response_code(400);
+            echo json_encode(['message' => 'Product deletion failed']);
+        }
+    }
+}
+?>
+```
+
+### `AccountController.php`
 
 ```php
 <?php
 require_once 'app/config/database.php';
 require_once 'app/models/AccountModel.php';
-require_once 'app/helpers/SessionHelper.php'; // Add this line if SessionHelper is not implicitly loaded
-
+require_once 'app/utils/JWTHandler.php';
 class AccountController
 {
-    private $AccountModel;
+    private $accountModel;
     private $db;
 
+    private $jwtHandler;
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
-        $this->AccountModel = new AccountModel($this->db);
+        $this->accountModel = new AccountModel($this->db);
+        $this->jwtHandler = new JWTHandler();
     }
 
-    public function register()
+    function register()
     {
-        // This will display the registration form.
         include_once 'app/views/account/register.php';
     }
 
     public function login()
     {
-        // This will display the login form.
         include_once 'app/views/account/login.php';
     }
 
-    public function save()
+    function save()
     {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $username = $_POST['username'] ?? '';
-            $fullName = $_POST['fullName'] ?? ''; // Note: This fullname is passed to AccountModel->save but not stored by the model's current SQL.
+            $fullName = $_POST['fullName'] ?? '';
             $password = $_POST['password'] ?? '';
             $confirmPassword = $_POST['confirmPassword'] ?? '';
 
             $errors = [];
-
-            // Validation
             if (empty($username)) {
-                $errors['username'] = "Vui long nhap userName!";
+                $errors['username'] = "Vui long nhap UserName!";
             }
             if (empty($fullName)) {
-                $errors['fullName'] = "Vui long nhap fullName!";
+                $errors['fullName'] = "Vui long nhap FullName!";
             }
             if (empty($password)) {
-                $errors['password'] = "Vui long nhap password!";
+                $errors['password'] = "Vui long nhap Password!";
             }
             if ($password != $confirmPassword) {
-                $errors['confirmPass'] = "Mat khau va xac nhan chua dung";
+                $errors['confirmPass'] = "Mat khau xac nhac chua dung";
             }
-
-            // Check if username already exists
-            $account = $this->AccountModel->getAccountByUsername($username);
-
+            //kiểm tra username đã được đăng ký chưa?
+            $account = $this->accountModel->getAccountByUsername($username);
             if ($account) {
                 $errors['account'] = "Tai khoan nay da co nguoi dang ky!";
             }
-
             if (count($errors) > 0) {
-                // If there are errors, reload the registration form with error messages.
                 include_once 'app/views/account/register.php';
             } else {
-                // Hash password
-                $hashedPassword = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+                $password = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
-                // Save user to database
-                $result = $this->AccountModel->save($username, $fullName, $hashedPassword); // fullname is passed here
+                $result = $this->accountModel->save($username, $fullName, $password);
 
                 if ($result) {
-                    // Redirect to login page on success
                     header('Location: /webbanhang/account/login');
-                    exit();
-                } else {
-                    // Handle save error (e.g., echo message, redirect to error page)
-                    echo "There was an error saving the account.";
                 }
             }
         }
     }
 
-    public function logout()
+    function logout()
     {
         unset($_SESSION['username']);
         unset($_SESSION['role']);
-        header('Location: /webbanhang/product'); // Redirect to product list after logout
-        exit();
+
+        header('Location: /webbanhang/product');
     }
 
     public function checkLogin()
     {
-        // Check if data is submitted via POST
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $username = $_POST['username'] ?? '';
-            $password = $_POST['password'] ?? '';
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
 
-            // Retrieve account by username
-            $account = $this->AccountModel->getAccountByUsername($username);
+        $username = $data['username'] ?? '';
+        $password = $data['password'] ?? '';
 
-            if ($account) {
-                $pwd_hashed = $account->password; // Get hashed password from DB
-                // Verify password
-                if (password_verify($password, $pwd_hashed)) {
-                    session_start(); // Start session if not already started
-                    // Set session variables
-                    $_SESSION['user_id'] = $account->id;
-                    $_SESSION['user_role'] = $account->role; // Assumes a 'role' column exists in DB
-                    $_SESSION['username'] = $account->username;
-                    header('Location: /webbanhang/product'); // Redirect to product list
-                    exit();
-                } else {
-                    echo "Password incorrect.";
-                }
-            } else {
-                echo "Bao loi khong thay tai khoan"; // Account not found
-            }
+        $user = $this->accountModel->getAccountByUsername($username);
+        if ($user && password_verify($password, $user->password)) {
+            $token = $this->jwtHandler->encode(['id' => $user->id, 'username' => $user->username]);
+            echo json_encode(['token' => $token]);
+        } else {
+            http_response_code(401);
+            echo json_encode(['message' => 'Invalid credentials']);
         }
     }
 }
-```
-
-## 4. Views
-
-**Objective:** Create the necessary view files for user interaction (registration, login) and common layout elements (header, footer).
-
-### 4.1. Registration View
-
-**File:** `app/views/account/register.php`
-
-**Code:**
-
-```php
-<?php include 'app/views/shares/header.php'; ?>
-<?php
-// Display errors if any
-if (isset($errors)) {
-    echo "<ul>";
-    foreach ($errors as $err) {
-        echo "<li class='text-danger'>" . $err . "</li>";
-    }
-    echo "</ul>";
-}
 ?>
-<div class="card-body p-5 text-center">
-    <form class="user" action="/webbanhang/account/save" method="post">
-        <div class="form-group row">
-            <div class="col-sm-6 mb-3 mb-sm-0">
-                <input type="text" class="form-control form-control-user" id="username" name="username" placeholder="username">
-            </div>
-            <div class="col-sm-6">
-                <input type="text" class="form-control form-control-user" id="fullname" name="fullName" placeholder="fullname">
-            </div>
-        </div>
-        <div class="form-group row">
-            <div class="col-sm-6 mb-3 mb-sm-0">
-                <input type="password" class="form-control form-control-user" id="password" name="password" placeholder="password">
-            </div>
-            <div class="col-sm-6">
-                <input type="password" class="form-control form-control-user" id="confirmPassword" name="confirmPassword" placeholder="confirmPassword">
-            </div>
-        </div>
-        <div class="form-group text-center">
-            <button type="submit" class="btn btn-primary btn-icon-split p-3">
-                Register
-            </button>
-        </div>
-    </form>
-</div>
-<?php include 'app/views/shares/footer.php'; ?>
 ```
 
-### 4.2. Login View
-
-**File:** `app/views/account/login.php`
-
-**Code:**
+### `app/views/account/login.php`
 
 ```php
 <?php include 'app/views/shares/header.php'; ?>
+
 <section class="vh-100 gradient-custom">
-    <div class="container py-5 h-100">
-        <div class="row d-flex justify-content-center align-items-center h-100">
-            <div class="col-12 col-md-8 col-lg-6 col-xl-5">
-                <div class="card bg-dark text-white" style="border-radius: 1rem;">
-                    <div class="card-body p-5 text-center">
-                        <form action="/webbanhang/account/checklogin" method="post">
-                            <div class="mb-md-5 mt-md-4 pb-5">
-                                <h2 class="fw-bold mb-2 text-uppercase">Login</h2>
-                                <p class="text-white-50 mb-5">Please enter your login and password!</p>
+  <div class="container py-5 h-100">
+    <div class="row d-flex justify-content-center align-items-center h-100">
+      <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+        <div class="card bg-dark text-white" style="border-radius: 1rem;">
+          <div class="card-body p-5 text-center">
 
-                                <div class="form-outline form-white mb-4">
-                                    <input type="text" name="username" id="typeEmailX" class="form-control form-control-lg" />
-                                    <label class="form-label" for="typeEmailX">Username</label>
-                                </div>
+            <form id="login-form">
+              <div class="mb-md-5 mt-md-4 pb-5">
 
-                                <div class="form-outline form-white mb-4">
-                                    <input type="password" name="password" id="typePasswordX" class="form-control form-control-lg" />
-                                    <label class="form-label" for="typePasswordX">Password</label>
-                                </div>
+                <h2 class="fw-bold mb-2 text-uppercase">Login</h2>
+                <p class="text-white-50 mb-5">Please enter your login and password!</p>
 
-                                <p class="small mb-5 pb-lg-2"><a class="text-white-50" href="#!">Forgot password?</a></p>
-
-                                <button class="btn btn-outline-light btn-lg px-5" type="submit">Login</button>
-
-                                <div class="d-flex justify-content-center text-center mt-4 pt-1">
-                                    <a href="#!" class="text-white"><i class="fab fa-facebook-f fa-lg"></i></a>
-                                    <a href="#!" class="text-white"><i class="fab fa-twitter fa-lg mx-4 px-2"></i></a>
-                                    <a href="#!" class="text-white"><i class="fab fa-google fa-lg"></i></a>
-                                </div>
-                            </div>
-
-                            <div>
-                                <p class="mb-0">Don't have an account? <a href="/webbanhang/account/register" class="text-white-50 fw-bold">Sign Up</a></p>
-                            </div>
-                        </form>
-                    </div>
+                <div class="form-outline form-white mb-4">
+                  <input type="text" name="username" id="typeEmailX" class="form-control form-control-lg" />
+                  <label class="form-label" for="typeEmailX">UserName</label>
                 </div>
-            </div>
+
+                <div class="form-outline form-white mb-4">
+                  <input type="password" name="password" id="typePasswordX" class="form-control form-control-lg" />
+                  <label class="form-label" for="typePasswordX">Password</label>
+                </div>
+
+                <p class="small mb-5 pb-lg-2"><a class="text-white-50" href="#!">Forgot password?</a></p>
+
+                <button class="btn btn-outline-light btn-lg px-5" type="submit">Login</button>
+
+                <div class="d-flex justify-content-center text-center mt-4 pt-1">
+                  <a href="#!" class="text-white"><i class="fab fa-facebook-f fa-lg"></i></a>
+                  <a href="#!" class="text-white"><i class="fab fa-twitter fa-lg mx-4 px-2"></i></a>
+                  <a href="#!" class="text-white"><i class="fab fa-google fa-lg"></i></a>
+                </div>
+
+              </div>
+
+              <div>
+                <p class="mb-0">Don't have an account? <a href="#!" class="text-white-50 fw-bold">Sign Up</a>
+                </p>
+              </div>
+            </form>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </section>
+
 <?php include 'app/views/shares/footer.php'; ?>
+<script>
+  document.getElementById('login-form').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    const formData = new FormData(this);
+    const jsonData = {};
+    formData.forEach((value, key) => {
+      jsonData[key] = value;
+    });
+
+    fetch('/webbanhang/account/checkLogin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(jsonData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.token) {
+          localStorage.setItem('jwtToken', data.token);
+          location.href = '/webbanhang/Product';
+        } else {
+          alert('Đăng nhập thất bại');
+        }
+      });
+  });
+</script>
 ```
 
-### 4.3. Header File
+### `app/views/shares/header.php`
 
-**Objective:** Update the `header.php` to conditionally display login/logout links based on session status using `SessionHelper`.
-
-**File:** `app/views/shares/header.php`
-
-**Code:**
-
-```php
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý sản phẩm</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         .product-image {
             max-width: 100px;
@@ -345,123 +393,100 @@ if (isset($errors)) {
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="/webbanhang/Product/Danh sách sản phẩm">Danh sách sản phẩm</a>
+                    <a class="nav-link" href="/webbanhang/Product/">Danh sách sản phẩm</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/webbanhang/Product/add">Thêm sản phẩm</a>
                 </li>
-                <li class="nav-item">
-                    <?php
-                    // This assumes SessionHelper is already included or autoloaded
-                    if (SessionHelper::isLoggedIn()) {
-                        echo "<a class='nav-link' href='#'>" . $_SESSION['username'] . "</a>";
-                    } else {
-                        echo "<a class='nav-link' href='/webbanhang/account/login'>Login</a>";
-                    }
-                    ?>
+                <li class="nav-item" id="nav-login">
+                    <a class="nav-link" href="/webbanhang/account/login">Login</a>
                 </li>
-                <li class="nav-item">
-                    <?php
-                    if (SessionHelper::isLoggedIn()) {
-                        echo "<a class='nav-link' href='/webbanhang/account/logout'>Logout</a>";
-                    }
-                    ?>
+                <li class="nav-item" id="nav-logout" style="display: none;">
+                    <a class="nav-link" href="#" onclick="logout()">Logout</a>
                 </li>
             </ul>
         </div>
     </nav>
+    <script>
+        function logout() {
+            localStorage.removeItem('jwtToken');
+            location.href = '/webbanhang/account/login';
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('jwtToken');
+            if (token) {
+                document.getElementById('nav-login').style.display = 'none';
+                document.getElementById('nav-logout').style.display = 'block';
+            } else {
+                document.getElementById('nav-login').style.display = 'block';
+                document.getElementById('nav-logout').style.display = 'none';
+            }
+        });
+    </script>
     <div class="container mt-4">
 ```
 
-### 4.4. Footer File
-
-**Objective:** Create the `footer.php` file (no code provided, but implied by `include`).
-
-**File:** `app/views/shares/footer.php`
-
-**Code:**
+### `app/views/product/list.php`
 
 ```php
-    <!-- Add any JavaScript links or closing body/html tags here -->
-    </div> <!-- Close .container mt-4 from header.php -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
-```
+<?php include 'app/views/shares/header.php'; ?>
 
-## 5. SessionHelper File
+<h1>Danh sách sản phẩm</h1>
+<a href="/webbanhang/Product/add" class="btn btn-success mb-2">Thêm sản phẩm mới</a>
+<ul class="list-group" id="product-list">
+    <!-- Danh sách sản phẩm sẽ được tải từ API và hiển thị tại đây -->
+</ul>
 
-**Objective:** Create a `SessionHelper` class to manage session-related checks.
+<?php include 'app/views/shares/footer.php'; ?>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) {
+            alert('Vui lòng đăng nhập!');
+            location.href = '/webbanhang/account/login'; // Điều hướng đến trang đăng nhập
+            return;
+        }
 
-**File:** `app/helpers/SessionHelper.php`
+        fetch('/webbanhang/api/product', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const productList = document.getElementById('product-list');
+                data.forEach(product => {
+                    const productItem = document.createElement('li');
+                    productItem.className = 'list-group-item';
+                    productItem.innerHTML = `
+                    <h2><a href="/webbanhang/Product/show/${product.id}">${product.name}</a></h2>
+                    <p>Mô tả: ${product.description}</p>
+                    <p>Giá: ${product.price} VNĐ</p>
+                    <p>Danh mục: ${product.category_name}</p>
+                    <a href="/webbanhang/Product/edit/${product.id}" class="btn btn-warning">Sửa</a>
+                    <button class="btn btn-danger" onclick="deleteProduct(${product.id})">Xóa</button>
+                `;
+                    productlist.appendChild(productItem);
+                });
+            });
+    });
 
-**Code:**
-
-```php
-<?php
-
-class SessionHelper
-{
-    public static function isLoggedIn()
-    {
-        return isset($_SESSION['username']);
+    function deleteProduct(id) {
+        if (confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
+            fetch(`/webbanhang/api/product/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message == 'Product deleted successfully') {
+                        location.reload();
+                    } else {
+                        alert('Xóa sản phẩm thất bại!');
+                    }
+                });
+        }
     }
-
-    public static function isAdmin()
-    {
-        return isset($_SESSION['username']) && $_SESSION['user_role'] === 'admin';
-    }
-}
+</script>
 ```
-
-## 6. Routing (index.php)
-
-**Objective:** Update the main `index.php` file to handle URL routing, dispatching requests to the appropriate controllers and actions.
-
-**File:** `index.php` (at the root of your project)
-
-**Code:**
-
-```php
-<?php
-session_start(); // Start session at the beginning
-
-// Required files
-require_once 'app/models/ProductModel.php'; // ProductModel not provided, but included in original.
-require_once 'app/helpers/SessionHelper.php';
-
-// Get URL parts
-$url = $_GET['url'] ?? '';
-$url = rtrim($url, '/');
-$url = filter_var($url, FILTER_SANITIZE_URL);
-$url = explode('/', $url);
-
-// Determine controller
-$controllerName = isset($url[0]) && $url[0] != '' ? ucfirst($url[0]) . 'Controller' : 'DefaultController'; // DefaultController not provided.
-// Determine action
-$action = isset($url[1]) && $url[1] != '' ? $url[1] : 'index';
-
-// debug line (uncomment to see controller and action)
-// die ("controller=$controllerName - action=$action");
-
-// Check if controller file exists
-if (!file_exists('app/controllers/' . $controllerName . '.php')) {
-    // Handle controller not found
-    die('Controller not found!');
-}
-
-require_once 'app/controllers/' . $controllerName . '.php';
-
-// Instantiate the controller
-$controller = new $controllerName();
-
-// Check if action method exists
-if (!method_exists($controller, $action)) {
-    // Handle action not found
-    die('Action not found!');
-}
-
-// Call the action with remaining URL segments as arguments
-call_user_func_array([$controller, $action], array_slice($url, 2));

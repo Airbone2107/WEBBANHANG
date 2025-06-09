@@ -1,881 +1,238 @@
-Tuyệt vời! Để tích hợp hệ thống xác thực người dùng từ `Plan.md` vào dự án hiện tại của bạn, tôi sẽ tạo một file `TODO.md` chi tiết. File này sẽ bao gồm tất cả các bước cần thiết, mã nguồn đầy đủ cho các file mới hoặc file được chỉnh sửa, và đảm bảo tính tương thích với cấu trúc và giao diện hiện tại của dự án.
+# TODO: Tích hợp API RESTful vào Project Web Bán Hàng
 
-Dưới đây là nội dung cho file `TODO.md`:
-
-```markdown
-<!-- TODO.md -->
-# TODO: Tích hợp Hệ thống Xác thực Người dùng vào Dự án
-
-Tài liệu này hướng dẫn từng bước để tích hợp các tính năng xác thực người dùng (đăng ký, đăng nhập, đăng xuất) từ `Plan.md` vào dự án Web Bán Hàng hiện tại. Các thay đổi sẽ được thực hiện để phù hợp với giao diện và cấu trúc hiện có của dự án.
-
-**LƯU Ý QUAN TRỌNG:**
-*   **Backup Dự Án:** Trước khi bắt đầu, hãy tạo một bản sao lưu (backup) toàn bộ thư mục dự án của bạn để đảm bảo an toàn dữ liệu.
-*   **Đường dẫn URL:** Dự án hiện tại sử dụng base URL là `/WEBBANHANG/`. Tất cả các đường dẫn trong code mới sẽ tuân theo quy ước này.
-*   **Bootstrap 5:** Các view mới sẽ được thiết kế để phù hợp với Bootstrap 5 và Font Awesome đã được sử dụng trong dự án.
+Tài liệu này hướng dẫn từng bước để tích hợp các tính năng API RESTful (dựa trên `Plan.md`) vào project Web Bán Hàng hiện tại. Các API này sẽ cho phép quản lý Sản phẩm và Danh mục thông qua các HTTP request tiêu chuẩn, đồng thời các trang giao diện web hiện tại sẽ được cập nhật để tương tác với các API này.
 
 ## Mục lục
-1.  [Bước 1: Thiết lập Cơ sở dữ liệu](#bước-1-thiết-lập-cơ-sở-dữ-liệu)
-2.  [Bước 2: Tạo Thư mục Helpers](#bước-2-tạo-thư-mục-helpers)
-3.  [Bước 3: Tạo SessionHelper](#bước-3-tạo-sessionhelper)
-4.  [Bước 4: Tạo AccountModel](#bước-4-tạo-accountmodel)
-5.  [Bước 5: Tạo AccountController](#bước-5-tạo-accountcontroller)
-6.  [Bước 6: Tạo Views cho Account](#bước-6-tạo-views-cho-account)
-    *   [6.1. Tạo thư mục `app/views/account`](#61-tạo-thư-mục-appviewsaccount)
-    *   [6.2. Tạo View Đăng ký (`register.php`)](#62-tạo-view-đăng-ký-registerphp)
-    *   [6.3. Tạo View Đăng nhập (`login.php`)](#63-tạo-view-đăng-nhập-loginphp)
-7.  [Bước 7: Cập nhật Header Chung](#bước-7-cập-nhật-header-chung)
-8.  [Bước 8: Cập nhật File Điều hướng Chính (`index.php`)](#bước-8-cập-nhật-file-điều-hướng-chính-indexphp)
-9.  [Bước 9: Kiểm tra và Hoàn thiện](#bước-9-kiểm-tra-và-hoàn-thiện)
 
----
+1.  [Giới thiệu](#1-giới-thiệu)
+2.  [Chuẩn bị](#2-chuẩn-bị)
+3.  [Tạo API Controllers](#3-tạo-api-controllers)
+    *   [3.1. Tạo `ProductApiController.php`](#31-tạo-productapicontrollerphp)
+    *   [3.2. Tạo `CategoryApiController.php`](#32-tạo-categoryapicontrollerphp)
+4.  [Cập nhật Router (`index.php`)](#4-cập-nhật-router-indexphp)
+5.  [Cập nhật Views để sử dụng API](#5-cập-nhật-views-để-sử-dụng-api)
+    *   [5.1. Cập nhật `app/views/product/list.php`](#51-cập-nhật-appviewsproductlistphp)
+    *   [5.2. Cập nhật `app/views/product/add.php`](#52-cập-nhật-appviewsproductaddphp)
+    *   [5.3. Cập nhật `app/views/product/edit.php`](#53-cập-nhật-appviewsproducteditphp)
+6.  [Lưu ý về Model](#6-lưu-ý-về-model)
+7.  [Kiểm tra và Hoàn tất](#7-kiểm-tra-và-hoàn-tất)
 
-## Bước 1: Thiết lập Cơ sở dữ liệu
+## 1. Giới thiệu
 
-**Mục tiêu:** Tạo bảng `account` trong cơ sở dữ liệu `my_store` để lưu trữ thông tin người dùng.
+Việc tích hợp API RESTful nhằm mục đích:
+- Cung cấp một giao diện lập trình ứng dụng (API) cho việc quản lý sản phẩm và danh mục.
+- Cho phép các ứng dụng khác (ví dụ: mobile app, frontend JavaScript framework) có thể tương tác với dữ liệu của hệ thống.
+- Cập nhật các trang quản lý sản phẩm hiện tại để sử dụng các API này, giúp tách biệt logic frontend và backend rõ ràng hơn.
 
-**Thực hiện:**
-Kết nối vào công cụ quản lý cơ sở dữ liệu của bạn (ví dụ: phpMyAdmin) và thực thi câu lệnh SQL sau để tạo bảng `account`. Bảng này sẽ bao gồm các cột `id`, `username`, `password`, `fullname`, `role`, và `created_at`.
+## 2. Chuẩn bị
 
-```sql
-CREATE TABLE `my_store`.`account` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `username` VARCHAR(255) NOT NULL UNIQUE,
-    `password` VARCHAR(255) NOT NULL,
-    `fullname` VARCHAR(255) NOT NULL,
-    `role` VARCHAR(50) NOT NULL DEFAULT 'user',
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE = InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
+Trước khi bắt đầu, hãy đảm bảo:
+- Cấu trúc thư mục của project khớp với những gì được mô tả trong `Document.md`.
+- Các file cốt lõi như `app/config/database.php`, `app/models/ProductModel.php`, `app/models/CategoryModel.php`, và `app/helpers/SessionHelper.php` đã tồn tại và hoạt động đúng với project hiện tại.
+- Composer đã được cài đặt và `vendor/autoload.php` đã được tạo (nếu có sử dụng thư viện bên ngoài, ví dụ: `firebase/php-jwt` như trong `composer.json`).
 
-Bảng này sẽ lưu trữ:
-*   `username`: Tên đăng nhập (duy nhất).
-*   `password`: Mật khẩu đã được mã hóa.
-*   `fullname`: Họ và tên đầy đủ của người dùng.
-*   `role`: Vai trò của người dùng (ví dụ: 'user', 'admin'). Mặc định là 'user'.
-*   `created_at`: Thời gian tài khoản được tạo.
+Các file hiện tại của project sẽ được ưu tiên sử dụng.
 
----
+## 3. Tạo API Controllers
 
-## Bước 2: Tạo Thư mục Helpers
+Chúng ta sẽ tạo hai API controller mới: một cho Product và một cho Category.
 
-**Mục tiêu:** Tạo thư mục `app/helpers` nếu nó chưa tồn tại. Thư mục này sẽ chứa các lớp tiện ích.
+### 3.1. Tạo `ProductApiController.php`
 
-**Thực hiện:**
-Kiểm tra trong thư mục `app/` của dự án. Nếu chưa có thư mục con tên là `helpers`, hãy tạo nó.
-Cấu trúc thư mục sẽ là:
-```
-app/
-├── config/
-├── controllers/
-├── helpers/     <-- Thư mục cần tạo (nếu chưa có)
-├── models/
-└── views/
-```
+Controller này sẽ xử lý các yêu cầu API liên quan đến sản phẩm (CRUD operations).
 
----
+Tạo file mới tại đường dẫn `app/controllers/ProductApiController.php` với nội dung sau:
 
-## Bước 3: Tạo SessionHelper
-
-**Mục tiêu:** Tạo file `SessionHelper.php` để quản lý các hàm liên quan đến session, giúp kiểm tra trạng thái đăng nhập và vai trò người dùng.
-
-**Thực hiện:**
-Tạo file mới tại đường dẫn `app/helpers/SessionHelper.php` với nội dung sau:
-
-```markdown
-<!-- app/helpers/SessionHelper.php -->
+```php
+<!-- app/controllers/ProductApiController.php -->
 <?php
-
-class SessionHelper
-{
-    /**
-     * Kiểm tra xem người dùng đã đăng nhập hay chưa.
-     * @return bool True nếu đã đăng nhập, False nếu chưa.
-     */
-    public static function isLoggedIn()
-    {
-        // session_status() == PHP_SESSION_NONE thì gọi session_start()
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-        return isset($_SESSION['user_id']);
-    }
-
-    /**
-     * Kiểm tra xem người dùng có phải là admin hay không.
-     * @return bool True nếu là admin, False nếu không phải.
-     */
-    public static function isAdmin()
-    {
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-        return isset($_SESSION['user_id']) && isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
-    }
-
-    /**
-     * Lấy thông tin người dùng từ session.
-     * @param string $key Khóa thông tin cần lấy (ví dụ: 'user_id', 'username', 'fullname', 'user_role').
-     * @return mixed Giá trị của thông tin hoặc null nếu không tồn tại.
-     */
-    public static function getUser($key = null)
-    {
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-        if ($key === null) {
-            // Trả về tất cả thông tin người dùng nếu có
-            $userInfo = [];
-            if (isset($_SESSION['user_id'])) $userInfo['user_id'] = $_SESSION['user_id'];
-            if (isset($_SESSION['username'])) $userInfo['username'] = $_SESSION['username'];
-            if (isset($_SESSION['fullname'])) $userInfo['fullname'] = $_SESSION['fullname'];
-            if (isset($_SESSION['user_role'])) $userInfo['user_role'] = $_SESSION['user_role'];
-            return !empty($userInfo) ? (object)$userInfo : null;
-        }
-        return $_SESSION[$key] ?? null;
-    }
-
-    /**
-     * Thiết lập session cho người dùng sau khi đăng nhập thành công.
-     * @param object $user Đối tượng người dùng từ database (phải có id, username, fullname, role).
-     */
-    public static function setUserSession($user)
-    {
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-        $_SESSION['user_id'] = $user->id;
-        $_SESSION['username'] = $user->username;
-        $_SESSION['fullname'] = $user->fullname;
-        $_SESSION['user_role'] = $user->role;
-    }
-
-    /**
-     * Xóa session người dùng (Đăng xuất).
-     */
-    public static function destroyUserSession()
-    {
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-        unset($_SESSION['user_id']);
-        unset($_SESSION['username']);
-        unset($_SESSION['fullname']);
-        unset($_SESSION['user_role']);
-        // Để an toàn hơn, có thể hủy toàn bộ session nếu không còn gì cần giữ lại
-        // session_destroy(); 
-    }
-}
-```
-
----
-
-## Bước 4: Tạo AccountModel
-
-**Mục tiêu:** Tạo file `AccountModel.php` để xử lý các tương tác với bảng `account` trong cơ sở dữ liệu.
-
-**Thực hiện:**
-Tạo file mới tại đường dẫn `app/models/AccountModel.php` với nội dung sau:
-
-```markdown
-<!-- app/models/AccountModel.php -->
-<?php
-/**
- * Lớp AccountModel
- * 
- * Lớp này chịu trách nhiệm quản lý và thao tác với dữ liệu tài khoản người dùng
- * trong cơ sở dữ liệu của ứng dụng Web Bán Hàng.
- * 
- * @author  Web Bán Hàng Team (Dựa trên Plan.md)
- * @version 1.0
- */
-class AccountModel
-{
-    /**
-     * Kết nối PDO đến cơ sở dữ liệu
-     * @var PDO
-     */
-    private $conn;
-    
-    /**
-     * Tên bảng tài khoản trong cơ sở dữ liệu
-     * @var string
-     */
-    private $table_name = "account";
-
-    /**
-     * Khởi tạo đối tượng AccountModel
-     * 
-     * @param PDO $db Đối tượng kết nối PDO đến cơ sở dữ liệu
-     */
-    public function __construct($db)
-    {
-        $this->conn = $db;
-    }
-
-    /**
-     * Lấy thông tin tài khoản bằng tên đăng nhập
-     * 
-     * @param string $username Tên đăng nhập
-     * @return object|false Đối tượng tài khoản hoặc false nếu không tìm thấy
-     */
-    public function getAccountByUsername($username)
-    {
-        $query = "SELECT id, username, password, fullname, role, created_at FROM " . $this->table_name . " WHERE username = :username LIMIT 1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':username', $username, PDO::PARAM_STR);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_OBJ);
-    }
-
-    /**
-     * Lưu tài khoản mới vào cơ sở dữ liệu
-     * 
-     * @param string $username Tên đăng nhập
-     * @param string $fullname Họ và tên
-     * @param string $hashedPassword Mật khẩu đã được mã hóa
-     * @param string $role Vai trò (mặc định 'user')
-     * @return bool True nếu lưu thành công, False nếu thất bại
-     */
-    public function save($username, $fullname, $hashedPassword, $role = "user")
-    {
-        // Kiểm tra xem username đã tồn tại chưa để tránh lỗi UNIQUE constraint từ DB
-        if ($this->getAccountByUsername($username)) {
-            return false; // Username đã tồn tại
-        }
-
-        $query = "INSERT INTO " . $this->table_name . " (username, fullname, password, role) VALUES (:username, :fullname, :password, :role)";
-        $stmt = $this->conn->prepare($query);
-
-        // Làm sạch dữ liệu
-        $username = htmlspecialchars(strip_tags($username));
-        $fullname = htmlspecialchars(strip_tags($fullname));
-        // $hashedPassword đã được hash, không cần strip_tags
-        $role = htmlspecialchars(strip_tags($role));
-
-        // Gán các tham số
-        $stmt->bindParam(':username', $username);
-        $stmt->bindParam(':fullname', $fullname);
-        $stmt->bindParam(':password', $hashedPassword);
-        $stmt->bindParam(':role', $role);
-
-        // Thực thi truy vấn
-        if ($stmt->execute()) {
-            return true;
-        }
-        return false;
-    }
-}
-```
-
----
-
-## Bước 5: Tạo AccountController
-
-**Mục tiêu:** Tạo file `AccountController.php` để xử lý logic liên quan đến đăng ký, đăng nhập và đăng xuất người dùng.
-
-**Thực hiện:**
-Tạo file mới tại đường dẫn `app/controllers/AccountController.php` với nội dung sau:
-
-```markdown
-<!-- app/controllers/AccountController.php -->
-<?php
-/**
- * Lớp AccountController
- * 
- * Lớp điều khiển này quản lý các hoạt động liên quan đến tài khoản người dùng:
- * - Đăng ký
- * - Đăng nhập
- * - Đăng xuất
- * 
- * @author  Web Bán Hàng Team (Dựa trên Plan.md)
- * @version 1.0
- */
 require_once 'app/config/database.php';
-require_once 'app/models/AccountModel.php';
-require_once 'app/helpers/SessionHelper.php';
+require_once 'app/models/ProductModel.php';
+// CategoryModel không thực sự cần thiết trong ProductApiController theo Plan.md, 
+// vì category_id chỉ là một trường dữ liệu.
+// Tuy nhiên, nếu có logic phức tạp liên quan đến category khi xử lý product, bạn có thể include nó.
+// require_once 'app/models/CategoryModel.php'; 
 
-class AccountController
+class ProductApiController
 {
-    /**
-     * Đối tượng AccountModel để tương tác với dữ liệu tài khoản
-     * @var AccountModel
-     */
-    private $accountModel;
-    
-    /**
-     * Kết nối cơ sở dữ liệu
-     * @var PDO
-     */
+    private $productModel;
     private $db;
 
-    /**
-     * Khởi tạo đối tượng AccountController
-     * Thiết lập kết nối cơ sở dữ liệu và khởi tạo model
-     */
     public function __construct()
     {
+        header('Access-Control-Allow-Origin: *'); // Cho phép CORS từ mọi nguồn (cân nhắc kỹ cho production)
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+        
+        // Xử lý preflight request cho CORS
+        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+            http_response_code(204); // No Content
+            exit;
+        }
+
         $this->db = (new Database())->getConnection();
-        $this->accountModel = new AccountModel($this->db);
-        // Đảm bảo session được khởi tạo
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
+        $this->productModel = new ProductModel($this->db);
     }
 
-    /**
-     * Hiển thị form đăng ký tài khoản
-     */
-    public function register()
+    // Lấy danh sách sản phẩm
+    // GET /WEBBANHANG/api/product
+    public function index()
     {
-        // Nếu đã đăng nhập, chuyển hướng về trang sản phẩm
-        if (SessionHelper::isLoggedIn()) {
-            header('Location: /WEBBANHANG/Product');
-            exit();
-        }
-        include_once 'app/views/account/register.php';
+        header('Content-Type: application/json');
+        $products = $this->productModel->getProducts();
+        echo json_encode($products);
     }
 
-    /**
-     * Hiển thị form đăng nhập
-     */
-    public function login()
+    // Lấy thông tin sản phẩm theo ID
+    // GET /WEBBANHANG/api/product/show/{id}
+    public function show($id)
     {
-        // Nếu đã đăng nhập, chuyển hướng về trang sản phẩm
-        if (SessionHelper::isLoggedIn()) {
-            header('Location: /WEBBANHANG/Product');
-            exit();
-        }
-        include_once 'app/views/account/login.php';
-    }
-
-    /**
-     * Xử lý lưu tài khoản mới từ form đăng ký
-     */
-    public function save()
-    {
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $username = trim($_POST['username'] ?? '');
-            $fullname = trim($_POST['fullname'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $confirmPassword = $_POST['confirmPassword'] ?? '';
-
-            $errors = [];
-
-            // Kiểm tra dữ liệu đầu vào
-            if (empty($username)) {
-                $errors['username'] = "Tên đăng nhập không được để trống.";
-            } elseif (strlen($username) < 3) {
-                 $errors['username'] = "Tên đăng nhập phải có ít nhất 3 ký tự.";
-            }
-
-            if (empty($fullname)) {
-                $errors['fullname'] = "Họ và tên không được để trống.";
-            }
-
-            if (empty($password)) {
-                $errors['password'] = "Mật khẩu không được để trống.";
-            } elseif (strlen($password) < 6) {
-                $errors['password'] = "Mật khẩu phải có ít nhất 6 ký tự.";
-            }
-
-            if ($password !== $confirmPassword) {
-                $errors['confirmPassword'] = "Mật khẩu xác nhận không khớp.";
-            }
-
-            // Kiểm tra xem tên đăng nhập đã tồn tại chưa
-            if (empty($errors['username']) && $this->accountModel->getAccountByUsername($username)) {
-                $errors['username'] = "Tên đăng nhập này đã được sử dụng.";
-            }
-
-            if (count($errors) > 0) {
-                // Truyền lỗi và dữ liệu đã nhập lại cho view
-                $_SESSION['form_data'] = $_POST;
-                $_SESSION['form_errors'] = $errors;
-                header('Location: /WEBBANHANG/Account/register');
-                exit();
-            } else {
-                // Mã hóa mật khẩu
-                $hashedPassword = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-
-                // Lưu tài khoản vào cơ sở dữ liệu
-                // Mặc định vai trò là 'user'
-                if ($this->accountModel->save($username, $fullname, $hashedPassword, 'user')) {
-                    $_SESSION['success_message'] = "Đăng ký tài khoản thành công! Vui lòng đăng nhập.";
-                    header('Location: /WEBBANHANG/Account/login');
-                    exit();
-                } else {
-                    $_SESSION['form_data'] = $_POST;
-                    $_SESSION['form_errors'] = ['general' => 'Đã có lỗi xảy ra trong quá trình đăng ký. Vui lòng thử lại.'];
-                    header('Location: /WEBBANHANG/Account/register');
-                    exit();
-                }
-            }
+        header('Content-Type: application/json');
+        $product = $this->productModel->getProductById($id);
+        if ($product) {
+            echo json_encode($product);
         } else {
-            // Nếu không phải POST request, chuyển hướng về trang đăng ký
-            header('Location: /WEBBANHANG/Account/register');
-            exit();
+            http_response_code(404);
+            echo json_encode(['message' => 'Product not found']);
         }
     }
 
-    /**
-     * Xử lý đăng xuất người dùng
-     */
-    public function logout()
+    // Thêm sản phẩm mới
+    // POST /WEBBANHANG/api/product/store
+    public function store()
     {
-        SessionHelper::destroyUserSession();
-        header('Location: /WEBBANHANG/Product'); // Chuyển hướng về trang danh sách sản phẩm
-        exit();
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $name = $data['name'] ?? '';
+        $description = $data['description'] ?? '';
+        $price = $data['price'] ?? '';
+        $category_id = $data['category_id'] ?? null;
+        // API này không xử lý upload image theo Plan.md
+        $image = null; 
+
+        // ProductModel hiện tại có thể yêu cầu image. 
+        // Chúng ta sẽ truyền null hoặc một giá trị mặc định nếu API không cung cấp image.
+        // Hoặc ProductModel cần được điều chỉnh để chấp nhận image là optional.
+        // Giả sử ProductModel::addProduct chấp nhận image là optional
+        $result = $this->productModel->addProduct($name, $description, $price, $category_id, $image);
+
+        if (is_array($result) && !empty($result['errors'])) { // Giả sử model trả về mảng lỗi
+            http_response_code(400); // Bad Request
+            echo json_encode(['errors' => $result['errors']]);
+        } elseif ($result === true) { // Giả sử model trả về true khi thành công
+            http_response_code(201); // Created
+            echo json_encode(['message' => 'Product created successfully!']);
+        } else {
+            http_response_code(500); // Internal Server Error
+            echo json_encode(['message' => 'Product creation failed!']);
+        }
     }
 
-    /**
-     * Xử lý kiểm tra thông tin đăng nhập
-     */
-    public function checkLogin()
+    // Cập nhật sản phẩm theo ID
+    // PUT /WEBBANHANG/api/product/update/{id}
+    public function update($id)
     {
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $username = trim($_POST['username'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $errors = [];
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
 
-            if (empty($username)) {
-                $errors['username'] = "Tên đăng nhập không được để trống.";
-            }
-            if (empty($password)) {
-                $errors['password'] = "Mật khẩu không được để trống.";
-            }
+        $name = $data['name'] ?? '';
+        $description = $data['description'] ?? '';
+        $price = $data['price'] ?? '';
+        $category_id = $data['category_id'] ?? null;
+        // API này không xử lý upload image theo Plan.md
+        // Để giữ nguyên ảnh cũ, chúng ta cần lấy thông tin sản phẩm hiện tại
+        $existingProduct = $this->productModel->getProductById($id);
+        if (!$existingProduct) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Product not found for update.']);
+            return;
+        }
+        $image = $existingProduct->image; // Giữ nguyên ảnh cũ
 
-            if (count($errors) > 0) {
-                $_SESSION['form_data'] = $_POST;
-                $_SESSION['form_errors'] = $errors;
-                header('Location: /WEBBANHANG/Account/login');
-                exit();
-            }
+        $result = $this->productModel->updateProduct($id, $name, $description, $price, $category_id, $image);
 
-            $account = $this->accountModel->getAccountByUsername($username);
-
-            if ($account) {
-                // Xác thực mật khẩu
-                if (password_verify($password, $account->password)) {
-                    // Đăng nhập thành công, lưu thông tin vào session
-                    SessionHelper::setUserSession($account);
-                    header('Location: /WEBBANHANG/Product'); // Chuyển hướng về trang danh sách sản phẩm
-                    exit();
-                } else {
-                    // Sai mật khẩu
-                    $errors['password'] = "Tên đăng nhập hoặc mật khẩu không chính xác.";
-                }
-            } else {
-                // Không tìm thấy tài khoản
-                $errors['username'] = "Tên đăng nhập hoặc mật khẩu không chính xác.";
-            }
-
-            // Nếu có lỗi (sai tk/mk)
-            $_SESSION['form_data'] = $_POST; // Giữ lại username đã nhập
-            $_SESSION['form_errors'] = $errors;
-            header('Location: /WEBBANHANG/Account/login');
-            exit();
-
+        if ($result) {
+            echo json_encode(['message' => 'Product updated successfully!']);
         } else {
-             // Nếu không phải POST request, chuyển hướng về trang đăng nhập
-            header('Location: /WEBBANHANG/Account/login');
-            exit();
+            http_response_code(400); // Bad Request hoặc 500 Internal Server Error tùy logic
+            echo json_encode(['message' => 'Product update failed!']);
+        }
+    }
+
+    // Xóa sản phẩm theo ID
+    // DELETE /WEBBANHANG/api/product/destroy/{id}
+    public function destroy($id)
+    {
+        header('Content-Type: application/json');
+        $result = $this->productModel->deleteProduct($id);
+
+        if ($result) {
+            echo json_encode(['message' => 'Product deleted successfully!']);
+        } else {
+            http_response_code(400); // Bad Request hoặc 500 Internal Server Error
+            echo json_encode(['message' => 'Product deletion failed!']);
         }
     }
 }
-```
-
----
-
-## Bước 6: Tạo Views cho Account
-
-### 6.1. Tạo thư mục `app/views/account`
-**Mục tiêu:** Tạo thư mục chứa các view liên quan đến tài khoản người dùng.
-
-**Thực hiện:**
-Trong thư mục `app/views/`, tạo một thư mục con mới tên là `account`.
-Cấu trúc thư mục sẽ là:
-```
-app/
-└── views/
-    ├── account/     <-- Thư mục cần tạo
-    ├── category/
-    ├── product/
-    └── shares/
-```
-
-### 6.2. Tạo View Đăng ký (`register.php`)
-
-**Mục tiêu:** Tạo file `register.php` để hiển thị form đăng ký tài khoản.
-
-**Thực hiện:**
-Tạo file mới tại đường dẫn `app/views/account/register.php` với nội dung sau. File này sẽ sử dụng header, footer chung và được thiết kế theo Bootstrap 5.
-
-```markdown
-<!-- app/views/account/register.php -->
-<?php 
-include 'app/views/shares/header.php'; 
-
-// Lấy lỗi và dữ liệu cũ từ session nếu có (sau khi redirect)
-$errors = $_SESSION['form_errors'] ?? [];
-$old_data = $_SESSION['form_data'] ?? [];
-unset($_SESSION['form_errors'], $_SESSION['form_data']);
 ?>
-
-<div class="main-content">
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4 p-md-5">
-                        <h2 class="card-title text-center fw-bold mb-4"><i class="fas fa-user-plus me-2 text-primary"></i>Đăng ký tài khoản</h2>
-                        
-                        <?php if (isset($errors['general'])): ?>
-                            <div class="alert alert-danger"><?php echo htmlspecialchars($errors['general']); ?></div>
-                        <?php endif; ?>
-
-                        <form action="/WEBBANHANG/Account/save" method="POST" novalidate>
-                            <div class="mb-3">
-                                <label for="fullname" class="form-label fw-medium">Họ và tên <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control <?php echo isset($errors['fullname']) ? 'is-invalid' : ''; ?>" 
-                                       id="fullname" name="fullname" 
-                                       value="<?php echo htmlspecialchars($old_data['fullname'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
-                                <?php if (isset($errors['fullname'])): ?>
-                                    <div class="invalid-feedback"><?php echo htmlspecialchars($errors['fullname']); ?></div>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="username" class="form-label fw-medium">Tên đăng nhập <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control <?php echo isset($errors['username']) ? 'is-invalid' : ''; ?>" 
-                                       id="username" name="username" 
-                                       value="<?php echo htmlspecialchars($old_data['username'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
-                                <div class="form-text">Ít nhất 3 ký tự.</div>
-                                <?php if (isset($errors['username'])): ?>
-                                    <div class="invalid-feedback"><?php echo htmlspecialchars($errors['username']); ?></div>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="password" class="form-label fw-medium">Mật khẩu <span class="text-danger">*</span></label>
-                                <input type="password" class="form-control <?php echo isset($errors['password']) ? 'is-invalid' : ''; ?>" 
-                                       id="password" name="password" required>
-                                <div class="form-text">Ít nhất 6 ký tự.</div>
-                                <?php if (isset($errors['password'])): ?>
-                                    <div class="invalid-feedback"><?php echo htmlspecialchars($errors['password']); ?></div>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="mb-4">
-                                <label for="confirmPassword" class="form-label fw-medium">Xác nhận mật khẩu <span class="text-danger">*</span></label>
-                                <input type="password" class="form-control <?php echo isset($errors['confirmPassword']) ? 'is-invalid' : ''; ?>" 
-                                       id="confirmPassword" name="confirmPassword" required>
-                                <?php if (isset($errors['confirmPassword'])): ?>
-                                    <div class="invalid-feedback"><?php echo htmlspecialchars($errors['confirmPassword']); ?></div>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-check-circle me-1"></i> Đăng ký
-                                </button>
-                            </div>
-                        </form>
-
-                        <hr class="my-4">
-
-                        <div class="text-center">
-                            <p class="mb-0">Đã có tài khoản? <a href="/WEBBANHANG/Account/login" class="fw-bold text-decoration-none">Đăng nhập ngay</a></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<?php include 'app/views/shares/footer.php'; ?>
 ```
 
-### 6.3. Tạo View Đăng nhập (`login.php`)
+### 3.2. Tạo `CategoryApiController.php`
 
-**Mục tiêu:** Tạo file `login.php` để hiển thị form đăng nhập.
+Controller này sẽ xử lý các yêu cầu API liên quan đến danh mục.
 
-**Thực hiện:**
-Tạo file mới tại đường dẫn `app/views/account/login.php` với nội dung sau:
+Tạo file mới tại đường dẫn `app/controllers/CategoryApiController.php` với nội dung sau:
 
-```markdown
-<!-- app/views/account/login.php -->
-<?php 
-include 'app/views/shares/header.php'; 
-
-// Lấy lỗi và dữ liệu cũ từ session nếu có
-$errors = $_SESSION['form_errors'] ?? [];
-$old_data = $_SESSION['form_data'] ?? [];
-$success_message = $_SESSION['success_message'] ?? null;
-
-unset($_SESSION['form_errors'], $_SESSION['form_data'], $_SESSION['success_message']);
-?>
-
-<div class="main-content">
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4 p-md-5">
-                        <h2 class="card-title text-center fw-bold mb-4"><i class="fas fa-sign-in-alt me-2 text-primary"></i>Đăng nhập</h2>
-                        
-                        <?php if ($success_message): ?>
-                            <div class="alert alert-success"><?php echo htmlspecialchars($success_message); ?></div>
-                        <?php endif; ?>
-                        
-                        <?php if (isset($errors['general'])): ?>
-                            <div class="alert alert-danger"><?php echo htmlspecialchars($errors['general']); ?></div>
-                        <?php endif; ?>
-
-                        <form action="/WEBBANHANG/Account/checkLogin" method="POST" novalidate>
-                            <div class="mb-3">
-                                <label for="username" class="form-label fw-medium">Tên đăng nhập <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control <?php echo isset($errors['username']) ? 'is-invalid' : ''; ?>" 
-                                       id="username" name="username" 
-                                       value="<?php echo htmlspecialchars($old_data['username'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
-                                <?php if (isset($errors['username'])): ?>
-                                    <div class="invalid-feedback"><?php echo htmlspecialchars($errors['username']); ?></div>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="password" class="form-label fw-medium">Mật khẩu <span class="text-danger">*</span></label>
-                                <input type="password" class="form-control <?php echo isset($errors['password']) ? 'is-invalid' : ''; ?>" 
-                                       id="password" name="password" required>
-                                <?php if (isset($errors['password'])): ?>
-                                    <div class="invalid-feedback"><?php echo htmlspecialchars($errors['password']); ?></div>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="mb-4 form-check">
-                                <input type="checkbox" class="form-check-input" id="rememberMe">
-                                <label class="form-check-label" for="rememberMe">Ghi nhớ đăng nhập</label>
-                            </div>
-
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập
-                                </button>
-                            </div>
-                        </form>
-
-                        <hr class="my-4">
-
-                        <div class="text-center">
-                            <p class="mb-2"><a href="#" class="text-decoration-none">Quên mật khẩu?</a></p>
-                            <p class="mb-0">Chưa có tài khoản? <a href="/WEBBANHANG/Account/register" class="fw-bold text-decoration-none">Đăng ký ngay</a></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<?php include 'app/views/shares/footer.php'; ?>
-```
-
----
-
-## Bước 7: Cập nhật Header Chung
-
-**Mục tiêu:** Cập nhật file `app/views/shares/header.php` để hiển thị các liên kết "Đăng nhập", "Đăng ký" hoặc "Tên người dùng", "Đăng xuất" tùy theo trạng thái đăng nhập.
-
-**Thực hiện:**
-Mở file `app/views/shares/header.php` và **thay thế toàn bộ nội dung** bằng code sau. Đảm bảo `SessionHelper.php` được include trước khi sử dụng. Trong trường hợp này, `index.php` sẽ load nó.
-
-```markdown
-<!-- app/views/shares/header.php -->
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Bán Hàng</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom styles -->
-    <style>
-        /* Inline styles for immediate use */
-        body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-        }
-        main {
-            flex: 1;
-        }
-        .main-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 15px;
-        }
-        @media (min-width: 768px) {
-            .main-content {
-                padding: 20px 30px;
-            }
-        }
-        @media (min-width: 992px) {
-            .main-content {
-                padding: 25px 50px;
-            }
-        }
-        .product-card {
-            transition: transform 0.3s;
-        }
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.12);
-        }
-        /* Dark mode styling */
-        body.dark-mode {
-            background-color: #212529;
-            color: #f8f9fa;
-        }
-        body.dark-mode .bg-light {
-            background-color: #343a40 !important;
-        }
-        body.dark-mode .text-dark {
-            color: #f8f9fa !important;
-        }
-        body.dark-mode .card {
-            background-color: #343a40;
-            color: #f8f9fa;
-        }
-        body.dark-mode .navbar-light .navbar-nav .nav-link {
-            color: rgba(248, 249, 250, 0.8);
-        }
-        body.dark-mode .navbar-light .navbar-brand {
-            color: #f8f9fa;
-        }
-        body.dark-mode .list-group-item {
-            background-color: #343a40;
-            color: #f8f9fa;
-            border-color: #495057;
-        }
-        body.dark-mode .table {
-            color: #f8f9fa;
-        }
-        body.dark-mode .card-header {
-            border-bottom: 1px solid #495057;
-        }
-        body.dark-mode .modal-content {
-            background-color: #343a40;
-            color: #f8f9fa;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center" href="/WEBBANHANG/Product">
-                    <i class="fas fa-shopping-cart me-2 text-primary"></i>
-                    <span class="fw-bold">Web Bán Hàng</span>
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
-                        data-bs-target="#navbarNav" aria-controls="navbarNav" 
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="productDropdown" role="button" 
-                               data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-box me-1"></i> Sản phẩm
-                            </a>
-                            <ul class="dropdown-menu shadow" aria-labelledby="productDropdown">
-                                <li><a class="dropdown-item" href="/WEBBANHANG/Product/"><i class="fas fa-list me-1"></i> Danh sách sản phẩm</a></li>
-                                <li><a class="dropdown-item" href="/WEBBANHANG/Product/add"><i class="fas fa-plus me-1"></i> Thêm sản phẩm</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="categoryDropdown" role="button" 
-                               data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-tags me-1"></i> Danh mục
-                            </a>
-                            <ul class="dropdown-menu shadow" aria-labelledby="categoryDropdown">
-                                <li><a class="dropdown-item" href="/WEBBANHANG/Category/"><i class="fas fa-list me-1"></i> Danh sách danh mục</a></li>
-                                <li><a class="dropdown-item" href="/WEBBANHANG/Category/add"><i class="fas fa-plus me-1"></i> Thêm danh mục</a></li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <div class="d-flex align-items-center">
-                        <a href="/WEBBANHANG/Product/cart" class="btn btn-outline-primary me-3 position-relative">
-                            <i class="fas fa-shopping-cart"></i>
-                            <?php 
-                            // Đếm số lượng sản phẩm trong giỏ hàng
-                            $cartItemCount = 0;
-                            if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
-                                foreach ($_SESSION['cart'] as $item) {
-                                    $cartItemCount += $item['quantity'];
-                                }
-                            }
-                            if ($cartItemCount > 0): ?>
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                <?php echo $cartItemCount; ?>
-                                <span class="visually-hidden">unread messages</span>
-                            </span>
-                            <?php endif; ?>
-                        </a>
-
-                        <?php if (SessionHelper::isLoggedIn()): ?>
-                            <?php $currentUser = SessionHelper::getUser(); ?>
-                            <div class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-user me-1"></i> <?php echo htmlspecialchars($currentUser->fullname ?? $currentUser->username); ?>
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-user-circle me-1"></i> Hồ sơ</a></li>
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-1"></i> Cài đặt</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="/WEBBANHANG/Account/logout"><i class="fas fa-sign-out-alt me-1"></i> Đăng xuất</a></li>
-                                </ul>
-                            </div>
-                        <?php else: ?>
-                            <a href="/WEBBANHANG/Account/login" class="btn btn-outline-success me-2">
-                                <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập
-                            </a>
-                            <a href="/WEBBANHANG/Account/register" class="btn btn-success">
-                                <i class="fas fa-user-plus me-1"></i> Đăng ký
-                            </a>
-                        <?php endif; ?>
-                        
-                        <button id="darkModeToggle" class="btn btn-outline-secondary ms-2">
-                            <i class="fas fa-moon"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </nav>
-    </header>
-
-    <main class="py-4">
+```php
+<!-- app/controllers/CategoryApiController.php -->
 <?php
-// File app/views/shares/footer.php sẽ đóng thẻ main và body, html
-// Không cần đóng ở đây.
+require_once 'app/config/database.php';
+require_once 'app/models/CategoryModel.php';
+
+class CategoryApiController
+{
+    private $categoryModel;
+    private $db;
+
+    public function __construct()
+    {
+        header('Access-Control-Allow-Origin: *'); // Cho phép CORS từ mọi nguồn (cân nhắc kỹ cho production)
+        header('Access-Control-Allow-Methods: GET, OPTIONS'); // Chỉ cho phép GET cho API này theo Plan.md
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+        // Xử lý preflight request cho CORS
+        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+            http_response_code(204); // No Content
+            exit;
+        }
+
+        $this->db = (new Database())->getConnection();
+        $this->categoryModel = new CategoryModel($this->db);
+    }
+
+    // Lấy danh sách danh mục
+    // GET /WEBBANHANG/api/category
+    public function index()
+    {
+        header('Content-Type: application/json');
+        $categories = $this->categoryModel->getCategories(); 
+        echo json_encode($categories);
+    }
+
+    // Các phương thức store, update, destroy cho Category có thể được thêm vào đây nếu cần,
+    // tương tự như ProductApiController, nhưng Plan.md chỉ đề cập đến index (GET).
+}
 ?>
 ```
 
----
+## 4. Cập nhật Router (`index.php`)
 
-## Bước 8: Cập nhật File Điều hướng Chính (`index.php`)
+Chúng ta cần cập nhật file `index.php` để nó có thể nhận diện và điều hướng các yêu cầu đến API controllers. Các URL cho API sẽ có dạng `/WEBBANHANG/api/{controller_name}/{action}/{params}`.
 
-**Mục tiêu:** Cập nhật file `index.php` ở thư mục gốc của dự án để nó có thể gọi `SessionHelper` và xử lý các route cho `AccountController`. Đồng thời, thay đổi controller mặc định thành `ProductController` nếu không có controller nào được chỉ định.
+Thay thế toàn bộ nội dung file `index.php` bằng mã sau:
 
-**Thực hiện:**
-Mở file `index.php` (ở thư mục gốc) và **thay thế toàn bộ nội dung** bằng code sau:
-
-```markdown
+```php
 <!-- index.php -->
 <?php
 // Luôn bắt đầu session ở đầu file
@@ -885,89 +242,767 @@ if (session_status() == PHP_SESSION_NONE) {
 
 // Các file cần thiết
 require_once 'app/helpers/SessionHelper.php'; // Load SessionHelper sớm
-// Các model và file khác sẽ được controller tự require nếu cần
 
 // Phân tích URL
-$url = $_GET['url'] ?? '';
-$url = rtrim($url, '/');
-$url = filter_var($url, FILTER_SANITIZE_URL);
-$urlParts = explode('/', $url);
+$fullUrlPath = $_GET['url'] ?? '';
+$fullUrlPath = rtrim($fullUrlPath, '/');
+$fullUrlPath = filter_var($fullUrlPath, FILTER_SANITIZE_URL);
+$urlParts = explode('/', $fullUrlPath);
 
-// Xác định Controller
-// Mặc định là ProductController nếu không có controller nào trong URL
-$controllerName = !empty($urlParts[0]) ? ucfirst(strtolower($urlParts[0])) . 'Controller' : 'ProductController';
+// Mặc định cho MVC
+$controllerNameMvc = 'ProductController';
+$actionMvc = 'index';
+$paramsMvc = [];
 
-// Xác định Action
-// Mặc định là 'index' nếu không có action nào trong URL
-$action = isset($urlParts[1]) && !empty($urlParts[1]) ? strtolower($urlParts[1]) : 'index';
+// Base path của ứng dụng (nếu có) - Ví dụ: /WEBBANHANG
+// Điều này giúp xác định đúng các phần của URL
+// Tuy nhiên, với .htaccess hiện tại, urlParts[0] sẽ là controller hoặc 'api'
+// Chúng ta không cần base path ở đây nữa nếu .htaccess đã rewrite đúng.
 
-// Tham số
-$params = array_slice($urlParts, 2);
+// Kiểm tra xem có phải là yêu cầu API không
+// URL API có dạng: api/controllerNameApi/actionApi/id
+if (isset($urlParts[0]) && strtolower($urlParts[0]) === 'api') {
+    // Đây là một yêu cầu API
+    $apiControllerSegment = $urlParts[1] ?? ''; // Ví dụ: 'product' hoặc 'category'
+    $apiControllerName = ucfirst(strtolower($apiControllerSegment)) . 'ApiController'; // Ví dụ: 'ProductApiController'
+    
+    // Xác định action và id cho API
+    $method = $_SERVER['REQUEST_METHOD'];
+    $apiAction = '';
+    $apiParams = [];
 
-// Kiểm tra file controller có tồn tại không
-$controllerFile = 'app/controllers/' . $controllerName . '.php';
-if (!file_exists($controllerFile)) {
-    // Nếu controller không tồn tại, có thể hiển thị trang 404 hoặc chuyển hướng
-    // Hiện tại, để đơn giản, báo lỗi và dừng.
-    // Trong thực tế, bạn nên có một trang lỗi thân thiện hơn.
-    // Ví dụ: header("HTTP/1.0 404 Not Found"); include 'app/views/errors/404.php'; exit();
-    die('Lỗi: Controller "' . htmlspecialchars($controllerName) . '" không tìm thấy.');
+    // URL: api/resource/{id} -> action là show (GET), update (PUT), destroy (DELETE)
+    // URL: api/resource      -> action là index (GET), store (POST)
+    // Plan.md đề xuất các tên action tường minh trong controller (index, show, store, update, destroy)
+    // Router sẽ cần ánh xạ method + URL segment tới các action đó.
+    
+    // Ví dụ: /api/product/show/123 -> $urlParts[2] = 'show', $urlParts[3] = '123'
+    // Ví dụ: /api/product/store -> $urlParts[2] = 'store'
+    // Ví dụ: /api/product (GET) -> index
+    // Ví dụ: /api/product/{id} (GET) -> show(id)
+
+    $apiActionNameFromUrl = $urlParts[2] ?? null; // Tên action tường minh từ URL nếu có
+    $idFromUrl = $urlParts[3] ?? null; // ID nếu action là show, update, destroy VÀ action được chỉ định tường minh
+
+    if ($apiActionNameFromUrl) {
+        $apiAction = strtolower($apiActionNameFromUrl);
+        if ($idFromUrl) {
+            $apiParams[] = $idFromUrl;
+        }
+    } else {
+        // Nếu không có action tường minh, xác định dựa trên method và sự tồn tại của ID (segment thứ 2 sau tên controller)
+        // /api/product/123 (GET) -> show(123)
+        // /api/product (GET) -> index
+        // /api/product (POST) -> store
+        // /api/product/123 (PUT) -> update(123)
+        // /api/product/123 (DELETE) -> destroy(123)
+        $potentialId = $urlParts[2] ?? null;
+
+        switch ($method) {
+            case 'GET':
+                if ($potentialId) {
+                    $apiAction = 'show';
+                    $apiParams[] = $potentialId;
+                } else {
+                    $apiAction = 'index';
+                }
+                break;
+            case 'POST':
+                $apiAction = 'store';
+                // Dữ liệu POST thường được lấy từ php://input trong controller
+                break;
+            case 'PUT':
+                if ($potentialId) {
+                    $apiAction = 'update';
+                    $apiParams[] = $potentialId;
+                } else {
+                    // PUT thường yêu cầu ID
+                    http_response_code(400); // Bad Request
+                    echo json_encode(['message' => 'Resource ID missing for PUT request. Use format: api/resource/id']);
+                    exit;
+                }
+                break;
+            case 'DELETE':
+                if ($potentialId) {
+                    $apiAction = 'destroy';
+                    $apiParams[] = $potentialId;
+                } else {
+                    // DELETE thường yêu cầu ID
+                    http_response_code(400); // Bad Request
+                    echo json_encode(['message' => 'Resource ID missing for DELETE request. Use format: api/resource/id']);
+                    exit;
+                }
+                break;
+            case 'OPTIONS': // Xử lý CORS preflight
+                 // Header CORS đã được thiết lập trong constructor của APIController
+                 // Nếu chưa, bạn có thể thêm ở đây:
+                 // header('Access-Control-Allow-Origin: *');
+                 // header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+                 // header('Access-Control-Allow-Headers: Content-Type, Authorization');
+                http_response_code(204); // No Content
+                exit;
+            default:
+                http_response_code(405); // Method Not Allowed
+                echo json_encode(['message' => 'Method Not Allowed']);
+                exit;
+        }
+    }
+
+
+    $controllerFile = 'app/controllers/' . $apiControllerName . '.php';
+
+    if (file_exists($controllerFile)) {
+        require_once $controllerFile;
+        if (class_exists($apiControllerName)) {
+            $controller = new $apiControllerName();
+            if (method_exists($controller, $apiAction)) {
+                call_user_func_array([$controller, $apiAction], $apiParams);
+            } else {
+                http_response_code(404);
+                echo json_encode(['message' => "Action '$apiAction' not found in controller '$apiControllerName'."]);
+            }
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => "Controller class '$apiControllerName' not found."]);
+        }
+    } else {
+        http_response_code(404);
+        echo json_encode(['message' => "Controller file '$controllerFile' not found."]);
+    }
+} else {
+    // Xử lý yêu cầu MVC thông thường
+    $controllerNameMvc = !empty($urlParts[0]) ? ucfirst(strtolower($urlParts[0])) . 'Controller' : 'ProductController';
+    $actionMvc = isset($urlParts[1]) && !empty($urlParts[1]) ? strtolower($urlParts[1]) : 'index';
+    $paramsMvc = array_slice($urlParts, 2);
+
+    $controllerFileMvc = 'app/controllers/' . $controllerNameMvc . '.php';
+
+    if (!file_exists($controllerFileMvc)) {
+        // Hiển thị trang lỗi 404 thân thiện
+        // include 'app/views/errors/404.php'; // Bạn cần tạo file này
+        header("HTTP/1.0 404 Not Found");
+        die('Lỗi: Controller "' . htmlspecialchars($controllerNameMvc) . '" không tìm thấy. File: ' . $controllerFileMvc);
+    }
+
+    require_once $controllerFileMvc;
+
+    if (!class_exists($controllerNameMvc)) {
+        header("HTTP/1.0 404 Not Found");
+        die('Lỗi: Lớp Controller "' . htmlspecialchars($controllerNameMvc) . '" không được định nghĩa trong file.');
+    }
+
+    $controller = new $controllerNameMvc();
+
+    if (!method_exists($controller, $actionMvc)) {
+         header("HTTP/1.0 404 Not Found");
+        die('Lỗi: Action "' . htmlspecialchars($actionMvc) . '" không tìm thấy trong Controller "' . htmlspecialchars($controllerNameMvc) . '".');
+    }
+
+    call_user_func_array([$controller, $actionMvc], $paramsMvc);
 }
+?>
+```
+**Lưu ý về Router:**
+Router trên giả định các endpoint API như sau:
+- `GET /WEBBANHANG/api/product` -> `ProductApiController@index`
+- `GET /WEBBANHANG/api/product/show/{id}` -> `ProductApiController@show($id)` (Plan.md dùng `show($id)`)
+- `POST /WEBBANHANG/api/product/store` -> `ProductApiController@store()` (Plan.md dùng `store()`)
+- `PUT /WEBBANHANG/api/product/update/{id}` -> `ProductApiController@update($id)` (Plan.md dùng `update($id)`)
+- `DELETE /WEBBANHANG/api/product/destroy/{id}` -> `ProductApiController@destroy($id)` (Plan.md dùng `destroy($id)`)
+- `GET /WEBBANHANG/api/category` -> `CategoryApiController@index`
 
-require_once $controllerFile;
+Router trên cố gắng linh hoạt với việc tên action có thể nằm trong URL (ví dụ: `api/product/show/123`) hoặc được suy ra từ HTTP method (ví dụ: `GET api/product/123` cũng sẽ gọi `show(123)`). Trong `Plan.md`, các ví dụ JavaScript gọi API theo cách tường minh (ví dụ `fetch('/webbanhang/api/product/${id}')` cho GET chi tiết, sẽ được router này hiểu là gọi action `show`).
 
-// Kiểm tra lớp controller có tồn tại không
-if (!class_exists($controllerName)) {
-    die('Lỗi: Lớp Controller "' . htmlspecialchars($controllerName) . '" không được định nghĩa trong file.');
-}
+## 5. Cập nhật Views để sử dụng API
 
-$controller = new $controllerName();
+Bây giờ, chúng ta sẽ cập nhật các file view hiện tại của trang quản lý sản phẩm để chúng gọi đến các API mới tạo bằng JavaScript, thay vì load dữ liệu trực tiếp bằng PHP.
 
-// Kiểm tra action có tồn tại trong controller không
-if (!method_exists($controller, $action)) {
-    // Nếu action không tồn tại, có thể hiển thị trang 404 hoặc gọi action mặc định (ví dụ: index)
-    // Hiện tại, báo lỗi và dừng.
-    die('Lỗi: Action "' . htmlspecialchars($action) . '" không tìm thấy trong Controller "' . htmlspecialchars($controllerName) . '".');
-}
+### 5.1. Cập nhật `app/views/product/list.php`
 
-// Gọi action với các tham số
-call_user_func_array([$controller, $action], $params);
+File này sẽ hiển thị danh sách sản phẩm lấy từ API.
+
+Thay thế toàn bộ nội dung file `app/views/product/list.php` bằng:
+
+```php
+<!-- app/views/product/list.php -->
+<?php include 'app/views/shares/header.php'; ?>
+
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 fw-bold"><i class="fas fa-box me-2 text-primary"></i>Danh sách sản phẩm (API Loaded)</h1>
+        <?php if (SessionHelper::isAdmin()): ?>
+        <a href="/WEBBANHANG/Product/add" id="addProductLink" class="btn btn-primary"> <!-- Sẽ cập nhật link này ở bước sau nếu trang add cũng dùng API -->
+            <i class="fas fa-plus-circle me-1"></i> Thêm sản phẩm mới
+        </a>
+        <?php endif; ?>
+    </div>
+    
+    <div id="product-list-container" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+        <!-- Danh sách sản phẩm sẽ được tải từ API và hiển thị tại đây bằng JavaScript -->
+        <div class="col-12 text-center">
+            <p>Đang tải danh sách sản phẩm...</p>
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php include 'app/views/shares/footer.php'; ?>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetchProducts();
+    });
+
+    function fetchProducts() {
+        const productListContainer = document.getElementById('product-list-container');
+        // Sử dụng URL tuyệt đối hoặc tương đối đúng với cấu hình của bạn
+        // Giả định .htaccess đã xử lý WEBBANHANG
+        fetch('/WEBBANHANG/api/product') 
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(products => {
+                productListContainer.innerHTML = ''; // Xóa thông báo loading
+                if (products && products.length > 0) {
+                    products.forEach(product => {
+                        const productCard = `
+                            <div class="col">
+                                <div class="card h-100 product-card shadow-sm">
+                                    <div style="height: 200px; overflow: hidden;">
+                                        ${product.image ? 
+                                            `<div style="height: 100%; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa;">
+                                                <img src="/WEBBANHANG/${escapeHTML(product.image)}" 
+                                                     style="max-width: 100%; max-height: 100%; object-fit: contain;"
+                                                     alt="${escapeHTML(product.name)}">
+                                            </div>` : 
+                                            `<div class="bg-light text-center d-flex align-items-center justify-content-center" style="height: 100%;">
+                                                <i class="fas fa-image fa-4x text-secondary"></i>
+                                            </div>`
+                                        }
+                                    </div>
+                                    
+                                    <div class="card-body d-flex flex-column">
+                                        <h5 class="card-title fw-bold">
+                                            ${escapeHTML(product.name)}
+                                        </h5>
+                                        
+                                        <p class="card-text text-truncate">
+                                            ${escapeHTML(product.description)}
+                                        </p>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="badge bg-primary rounded-pill">
+                                                <i class="fas fa-tag me-1"></i>
+                                                ${escapeHTML(product.category_name || 'N/A')}
+                                            </span>
+                                            <span class="fw-bold text-danger">
+                                                ${Number(product.price).toLocaleString('vi-VN')} VNĐ
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="mt-auto pt-3 border-top">
+                                            <div class="d-flex flex-wrap gap-1">
+                                                <a href="/WEBBANHANG/Product/show/${product.id}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i> Chi tiết
+                                                </a>
+                                                <a href="/WEBBANHANG/Product/addToCart/${product.id}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
+                                                </a>
+                                                <?php if (SessionHelper::isAdmin()): ?>
+                                                <a href="/WEBBANHANG/Product/edit/${product.id}" class="btn btn-sm btn-outline-secondary"> <!-- Sẽ cập nhật link này ở bước sau nếu trang edit cũng dùng API -->
+                                                    <i class="fas fa-edit me-1"></i> Sửa
+                                                </a>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${product.id}, '${escapeJS(product.name)}')">
+                                                    <i class="fas fa-trash me-1"></i> Xóa
+                                                </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        productListContainer.insertAdjacentHTML('beforeend', productCard);
+                    });
+                } else {
+                    productListContainer.innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> Chưa có sản phẩm nào.
+                                <?php if (SessionHelper::isAdmin()): ?>
+                                    Hãy thêm sản phẩm mới!
+                                <?php endif; ?>
+                            </div>
+                        </div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching products:', error);
+                productListContainer.innerHTML = '<div class="col-12"><div class="alert alert-danger">Lỗi khi tải danh sách sản phẩm. Vui lòng thử lại.</div></div>';
+            });
+    }
+
+    function deleteProduct(id, productName) {
+        if (confirm('Bạn có chắc chắn muốn xóa sản phẩm "' + productName + '"?')) {
+            fetch(`/WEBBANHANG/api/product/destroy/${id}`, { // Đảm bảo URL đúng
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'Product deleted successfully!') {
+                    alert('Xóa sản phẩm thành công!');
+                    fetchProducts(); // Tải lại danh sách sản phẩm
+                } else {
+                    alert('Xóa sản phẩm thất bại: ' + (data.message || 'Lỗi không xác định'));
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting product:', error);
+                alert('Lỗi khi xóa sản phẩm. Vui lòng thử lại.');
+            });
+        }
+    }
+
+    // Helper functions để tránh XSS
+    function escapeHTML(str) {
+        if (str === null || str === undefined) return '';
+        return str.toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function escapeJS(str) {
+        if (str === null || str === undefined) return '';
+        return str.toString().replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0');
+    }
+</script>
 ```
 
----
+### 5.2. Cập nhật `app/views/product/add.php`
 
-## Bước 9: Kiểm tra và Hoàn thiện
+File này sẽ cho phép thêm sản phẩm mới thông qua API. Form sẽ được submit bằng JavaScript.
 
-**Mục tiêu:** Kiểm tra tất cả các chức năng mới và đảm bảo chúng hoạt động chính xác.
+Thay thế toàn bộ nội dung file `app/views/product/add.php` bằng:
 
-**Thực hiện:**
-1.  **Xóa cache trình duyệt (nếu cần):** Để đảm bảo bạn thấy các thay đổi mới nhất.
-2.  **Kiểm tra chức năng Đăng ký:**
-    *   Truy cập `/WEBBANHANG/Account/register`.
-    *   Thử đăng ký với thông tin hợp lệ.
-    *   Thử đăng ký với thông tin không hợp lệ (để trống, mật khẩu không khớp, username đã tồn tại) và kiểm tra thông báo lỗi.
-    *   Sau khi đăng ký thành công, bạn có được chuyển hướng đến trang đăng nhập với thông báo thành công không?
-3.  **Kiểm tra chức năng Đăng nhập:**
-    *   Truy cập `/WEBBANHANG/Account/login`.
-    *   Thử đăng nhập với tài khoản vừa đăng ký.
-    *   Thử đăng nhập với thông tin sai (sai username, sai password) và kiểm tra thông báo lỗi.
-    *   Sau khi đăng nhập thành công, bạn có được chuyển hướng đến trang sản phẩm không? Header có hiển thị tên người dùng và nút "Đăng xuất" không?
-4.  **Kiểm tra chức năng Đăng xuất:**
-    *   Nhấn vào nút "Đăng xuất".
-    *   Bạn có được chuyển hướng về trang sản phẩm không? Header có trở lại trạng thái "Đăng nhập", "Đăng ký" không?
-5.  **Kiểm tra Session:**
-    *   Đăng nhập, sau đó đóng trình duyệt và mở lại. Bạn có còn đăng nhập không (nếu chưa làm chức năng "ghi nhớ tôi")?
-    *   Thử truy cập các trang yêu cầu đăng nhập (nếu có) khi chưa đăng nhập.
-    *   Thử truy cập trang đăng nhập/đăng ký khi đã đăng nhập (bạn sẽ được chuyển hướng đi).
-6.  **Kiểm tra tính tương thích:**
-    *   Các chức năng quản lý sản phẩm, danh mục hiện có còn hoạt động bình thường không?
-    *   Giao diện có bị vỡ hay hiển thị sai ở đâu không?
-7.  **Xem xét vai trò người dùng (Admin):**
-    *   Hiện tại, `AccountModel::save` mặc định vai trò là 'user'. Nếu bạn cần chức năng admin, bạn sẽ cần:
-        *   Một cách để tạo tài khoản admin (ví dụ: trực tiếp trong database, hoặc một form đăng ký đặc biệt).
-        *   Cập nhật `SessionHelper::isAdmin()` và các controller/view để kiểm tra quyền admin cho các chức năng quản trị.
+```php
+<!-- app/views/product/add.php -->
+<?php include 'app/views/shares/header.php'; ?>
 
----
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 fw-bold"><i class="fas fa-plus-circle me-2 text-primary"></i>Thêm sản phẩm mới (API)</h1>
+        <a href="/WEBBANHANG/Product/list" class="btn btn-outline-primary"> <!-- Giả sử list đã được cập nhật hoặc sẽ là trang list truyền thống -->
+            <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách
+        </a>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div id="form-message" class="mb-3"></div> <!-- Để hiển thị thông báo lỗi/thành công -->
+            
+            <form id="add-product-form">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label fw-medium">Tên sản phẩm <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="category_id" class="form-label fw-medium">Danh mục <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">-- Đang tải danh mục --</option>
+                            <!-- Các danh mục sẽ được tải từ API và hiển thị tại đây -->
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="description" class="form-label fw-medium">Mô tả sản phẩm</label>
+                    <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="price" class="form-label fw-medium">Giá (VNĐ) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="price" name="price" min="0" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="image" class="form-label fw-medium">Hình ảnh</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        <div class="form-text">Lưu ý: Upload hình ảnh qua API không được hỗ trợ trong phiên bản này. Hình ảnh sẽ không được lưu.</div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary" id="submit-button">
+                        <i class="fas fa-save me-1"></i> Lưu sản phẩm
+                    </button>
+                    <a href="/WEBBANHANG/Product/list" class="btn btn-secondary ms-2">
+                        <i class="fas fa-times me-1"></i> Hủy
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-Chúc bạn tích hợp thành công!
+<?php include 'app/views/shares/footer.php'; ?>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const categorySelect = document.getElementById('category_id');
+        const addProductForm = document.getElementById('add-product-form');
+        const formMessageContainer = document.getElementById('form-message');
+        const submitButton = document.getElementById('submit-button');
+
+        // Load categories for dropdown
+        fetch('/WEBBANHANG/api/category')
+            .then(response => response.json())
+            .then(categories => {
+                categorySelect.innerHTML = '<option value="">-- Chọn danh mục --</option>'; // Xóa "Đang tải"
+                if (categories && categories.length > 0) {
+                    categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = escapeHTML(category.name);
+                        categorySelect.appendChild(option);
+                    });
+                } else {
+                    categorySelect.innerHTML = '<option value="">-- Không có danh mục --</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching categories:', error);
+                categorySelect.innerHTML = '<option value="">-- Lỗi tải danh mục --</option>';
+                displayMessage('Lỗi tải danh mục sản phẩm.', 'danger');
+            });
+
+        // Handle form submission
+        addProductForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang lưu...';
+            formMessageContainer.innerHTML = '';
+
+
+            const formData = new FormData(this);
+            const jsonData = {};
+            // Chỉ lấy các trường mà API hỗ trợ (name, description, price, category_id)
+            jsonData['name'] = formData.get('name');
+            jsonData['description'] = formData.get('description');
+            jsonData['price'] = formData.get('price');
+            jsonData['category_id'] = formData.get('category_id');
+
+            // API ProductApiController.store không xử lý file image
+            // Nếu muốn xử lý image, cần dùng ProductController (MVC) hiện tại
+            // hoặc nâng cấp API.
+
+            fetch('/WEBBANHANG/api/product/store', { // Đảm bảo URL đúng
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                    // 'Authorization': 'Bearer YOUR_TOKEN_IF_NEEDED' 
+                },
+                body: JSON.stringify(jsonData)
+            })
+            .then(response => {
+                // Kiểm tra nếu response không phải JSON mà là lỗi server dạng text
+                if (!response.headers.get("content-type")?.includes("application/json") && !response.ok) {
+                     return response.text().then(text => { throw new Error("Server error: " + text + " (Status: " + response.status + ")") });
+                }
+                return response.json().then(data => ({ status: response.status, body: data }));
+            })
+            .then(({ status, body }) => {
+                if (status === 201 && body.message === 'Product created successfully!') {
+                    displayMessage('Thêm sản phẩm thành công!', 'success');
+                    addProductForm.reset(); // Xóa form
+                    // Tùy chọn: Chuyển hướng sau khi thành công
+                    // setTimeout(() => { window.location.href = '/WEBBANHANG/Product/list'; }, 2000);
+                } else if (status === 400 && body.errors) {
+                    let errorMessages = "Lỗi nhập liệu:<ul class='mb-0'>";
+                    for (const key in body.errors) {
+                        errorMessages += `<li>${escapeHTML(body.errors[key])}</li>`;
+                    }
+                    errorMessages += "</ul>";
+                    displayMessage(errorMessages, 'danger');
+                } else {
+                    displayMessage('Thêm sản phẩm thất bại: ' + (body.message || 'Lỗi không xác định từ server.'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                displayMessage('Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại. Chi tiết: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                 submitButton.disabled = false;
+                 submitButton.innerHTML = '<i class="fas fa-save me-1"></i> Lưu sản phẩm';
+            });
+        });
+
+        function displayMessage(message, type = 'info') {
+            formMessageContainer.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                                                ${message}
+                                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                              </div>`;
+        }
+        // Helper function để tránh XSS
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return str.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    });
+</script>
+```
+
+### 5.3. Cập nhật `app/views/product/edit.php`
+
+File này sẽ cho phép chỉnh sửa sản phẩm hiện có thông qua API.
+
+Thay thế toàn bộ nội dung file `app/views/product/edit.php` bằng:
+
+```php
+<!-- app/views/product/edit.php -->
+<?php include 'app/views/shares/header.php'; ?>
+
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 fw-bold"><i class="fas fa-edit me-2 text-primary"></i>Chỉnh sửa sản phẩm (API)</h1>
+        <a href="/WEBBANHANG/Product/list" class="btn btn-outline-primary"> <!-- Giả sử list đã được cập nhật -->
+            <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách
+        </a>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div id="form-message" class="mb-3"></div> <!-- Để hiển thị thông báo lỗi/thành công -->
+            <form id="edit-product-form">
+                <input type="hidden" id="id" name="id">
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label fw-medium">Tên sản phẩm <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="category_id" class="form-label fw-medium">Danh mục <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">-- Đang tải danh mục --</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="description" class="form-label fw-medium">Mô tả sản phẩm</label>
+                    <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="price" class="form-label fw-medium">Giá (VNĐ) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="price" name="price" min="0" required>
+                    </div>
+                    <div class="col-md-6">
+                         <label for="image" class="form-label fw-medium">Hình ảnh</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        <div class="form-text">Lưu ý: Upload hình ảnh mới qua API không được hỗ trợ. Hình ảnh hiện tại sẽ được giữ nguyên.</div>
+                    </div>
+                </div>
+                 <div class="mb-3" id="current-image-container" style="display:none;">
+                    <label class="form-label fw-medium">Hình ảnh hiện tại</label>
+                    <div><img id="current-image" src="" alt="Hình ảnh hiện tại" class="img-thumbnail" style="max-width: 150px; max-height: 150px;"></div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary" id="submit-button">
+                        <i class="fas fa-save me-1"></i> Lưu thay đổi
+                    </button>
+                    <a href="/WEBBANHANG/Product/list" class="btn btn-secondary ms-2">
+                        <i class="fas fa-times me-1"></i> Hủy
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php include 'app/views/shares/footer.php'; ?>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const editProductForm = document.getElementById('edit-product-form');
+        const categorySelect = document.getElementById('category_id');
+        const formMessageContainer = document.getElementById('form-message');
+        const submitButton = document.getElementById('submit-button');
+        const currentImageContainer = document.getElementById('current-image-container');
+        const currentImageElement = document.getElementById('current-image');
+
+        // Extract product ID from URL (e.g., /WEBBANHANG/Product/edit/123)
+        const pathSegments = window.location.pathname.split('/');
+        const productId = pathSegments[pathSegments.length - 1]; 
+
+        if (!productId || isNaN(productId)) {
+            displayMessage('ID sản phẩm không hợp lệ.', 'danger');
+            submitButton.disabled = true;
+            return;
+        }
+        document.getElementById('id').value = productId;
+
+        // Load categories
+        const fetchCategories = fetch('/WEBBANHANG/api/category')
+            .then(response => response.json())
+            .then(categories => {
+                categorySelect.innerHTML = '<option value="">-- Chọn danh mục --</option>';
+                if (categories && categories.length > 0) {
+                    categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = escapeHTML(category.name);
+                        categorySelect.appendChild(option);
+                    });
+                } else {
+                     categorySelect.innerHTML = '<option value="">-- Không có danh mục --</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching categories:', error);
+                categorySelect.innerHTML = '<option value="">-- Lỗi tải danh mục --</option>';
+                displayMessage('Lỗi tải danh mục sản phẩm.', 'danger');
+            });
+
+        // Load product data then set category
+        const fetchProductData = fetch(`/WEBBANHANG/api/product/show/${productId}`) // Đảm bảo URL đúng
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 404) throw new Error('Product not found (404)');
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(product => {
+                document.getElementById('name').value = escapeHTML(product.name);
+                document.getElementById('description').value = escapeHTML(product.description);
+                document.getElementById('price').value = product.price;
+                if (product.image) {
+                    currentImageElement.src = `/WEBBANHANG/${escapeHTML(product.image)}`;
+                    currentImageContainer.style.display = 'block';
+                }
+                // Trả về product để promise tiếp theo có thể dùng
+                return product; 
+            })
+            .catch(error => {
+                console.error('Error fetching product data:', error);
+                displayMessage('Lỗi tải dữ liệu sản phẩm: ' + error.message, 'danger');
+                submitButton.disabled = true;
+                // Ném lỗi để Promise.all biết
+                throw error; 
+            });
+
+        // Sau khi cả hai fetch hoàn tất (categories và product data)
+        Promise.all([fetchCategories, fetchProductData])
+            .then((results) => {
+                const product = results[1]; // product data từ fetchProductData
+                if (product && product.category_id) {
+                     // Kiểm tra xem option có tồn tại không trước khi set
+                    if (categorySelect.querySelector('option[value="' + product.category_id + '"]')) {
+                        categorySelect.value = product.category_id;
+                    } else {
+                        console.warn('Category ID ' + product.category_id + ' not found in select options.');
+                    }
+                }
+            })
+            .catch(error => {
+                 // Lỗi đã được xử lý ở các catch riêng lẻ, chỉ log thêm nếu cần
+                 console.error("Error in Promise.all for product edit page:", error);
+            });
+
+
+        // Handle form submission
+        editProductForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang cập nhật...';
+            formMessageContainer.innerHTML = '';
+
+            const formData = new FormData(this);
+            const jsonData = {};
+            jsonData['name'] = formData.get('name');
+            jsonData['description'] = formData.get('description');
+            jsonData['price'] = formData.get('price');
+            jsonData['category_id'] = formData.get('category_id');
+            // ID đã có trong jsonData.id thông qua input hidden
+
+            // API ProductApiController.update không xử lý upload file image mới.
+            // Nó sẽ giữ nguyên ảnh cũ nếu không có logic đặc biệt để xóa/thay đổi.
+            // Trong ProductApiController, chúng ta đã code để nó giữ ảnh cũ.
+
+            fetch(`/WEBBANHANG/api/product/update/${productId}`, { // Đảm bảo URL đúng
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                    // 'Authorization': 'Bearer YOUR_TOKEN_IF_NEEDED' 
+                },
+                body: JSON.stringify(jsonData)
+            })
+            .then(response => {
+                 if (!response.headers.get("content-type")?.includes("application/json") && !response.ok) {
+                     return response.text().then(text => { throw new Error("Server error: " + text + " (Status: " + response.status + ")") });
+                }
+                return response.json().then(data => ({ status: response.status, body: data }));
+            })
+            .then(({status, body}) => {
+                if (status === 200 && body.message === 'Product updated successfully!') {
+                    displayMessage('Cập nhật sản phẩm thành công!', 'success');
+                     // Tùy chọn: Chuyển hướng sau khi thành công
+                    // setTimeout(() => { window.location.href = '/WEBBANHANG/Product/list'; }, 2000);
+                } else if (status === 400 && body.errors) {
+                    let errorMessages = "Lỗi nhập liệu:<ul class='mb-0'>";
+                     for (const key in body.errors) {
+                        errorMessages += `<li>${escapeHTML(body.errors[key])}</li>`;
+                    }
+                    errorMessages += "</ul>";
+                    displayMessage(errorMessages, 'danger');
+                } else {
+                     displayMessage('Cập nhật sản phẩm thất bại: ' + (body.message || 'Lỗi không xác định từ server.'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                displayMessage('Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại. Chi tiết: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                 submitButton.disabled = false;
+                 submitButton.innerHTML = '<i class="fas fa-save me-1"></i> Lưu thay đổi';
+            });
+        });
+        
+        function displayMessage(message, type = 'info') {
+            formMessageContainer.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                                                ${message}
+                                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                              </div>`;
+        }
+        // Helper function để tránh XSS
+        function escapeHTML(str) {
+             if (str === null || str === undefined) return '';
+            return str.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    });
+</script>
 ```
